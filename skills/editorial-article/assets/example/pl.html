@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Jak Second Brain zapisuje notatki, odnajduje kontekst i udostępnia pamięć agentom AI przez MCP. Interaktywny artykuł o architekturze projektu.">
+  <meta name="color-scheme" content="light">
+  <title>Second Brain. Pamięć poza oknem rozmowy</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23202321'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="preload" as="image" href="../shared/memory.png">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="pl" href="pl.html">
+  <style>
+    @font-face{font-family:Geist;font-style:normal;font-weight:100 900;font-display:swap;src:url("../shared/fonts/geist-latin-ext-wght-normal.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+    @font-face{font-family:Geist;font-style:normal;font-weight:100 900;font-display:swap;src:url("../shared/fonts/geist-latin-wght-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    :root{--paper:#fff;--ink:#202723;--muted:#5e6861;--faint:#f5f7f5;--line:#dfe5df;--accent:#235b47;--tint:#eaf2ec;--ease:cubic-bezier(.2,.65,.3,1);interpolate-size:allow-keywords}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:var(--paper);color:var(--ink);font-family:Geist,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inherit;cursor:pointer}a{color:inherit;text-underline-offset:4px}button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}button:disabled{cursor:default;opacity:.45}::selection{background:#cde4d9}.skip{position:fixed;top:10px;left:10px;z-index:10;background:var(--paper);padding:12px;transform:translateY(-180%)}.skip:focus{transform:none}.icon{width:20px;height:20px;object-fit:contain;flex-shrink:0;vertical-align:middle}
+    .sheet{width:100%;margin:0;border-radius:0}
+    .progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:7;pointer-events:none;background:var(--line)}.progress span{display:block;width:100%;height:100%;background:linear-gradient(90deg,#9ec8b7,#3f7c64);transform:scaleX(0);transform-origin:0 0}
+    .hero{width:calc(100% - 80px);max-width:970px;margin:0 auto;padding-top:44px}.hero-head{display:block;text-align:center;margin-bottom:34px}.eyebrow{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin:0 0 20px}h1{font-weight:430;font-size:clamp(38px,4.4vw,60px);line-height:1.12;letter-spacing:-.035em;max-width:880px;margin:0 auto 22px;text-wrap:balance}.dek{font-size:16px;line-height:1.7;color:var(--muted);max-width:570px;margin:0 auto}.metadata{display:flex;justify-content:center;gap:44px;margin:30px 0 0;font-size:11px;color:var(--muted)}.metadata div{display:grid;gap:6px}.metadata dt{font-size:9px;text-transform:uppercase;letter-spacing:1px}.metadata .byline dt{text-transform:none;letter-spacing:0;font-size:11px}.metadata dd{margin:0;color:var(--ink)}.cover{margin:0;overflow:hidden;border-radius:24px;aspect-ratio:2.15;background:#92b9be}.cover img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 48%}.cover-caption{color:var(--muted);font-size:11px;line-height:1.6;margin:13px 0 0;display:flex;justify-content:space-between;gap:20px}.cover-caption span:last-child{white-space:nowrap}
+    .reading-layout{display:grid;grid-template-columns:150px minmax(0,720px);gap:54px;width:calc(100% - 80px);max-width:970px;margin:68px auto 0;align-items:start}.sidebar{position:sticky;top:32px;padding-top:5px}.sidebar-title{font-size:12px;font-weight:550;margin:0 0 21px}.toc{display:grid;gap:15px;border-left:1px solid var(--line)}.toc a{position:relative;text-decoration:none;font-size:12px;color:var(--muted);line-height:1.5;padding-left:17px;transition:color 150ms}.toc a.active{color:var(--accent);font-weight:550}.toc a.active::before{content:"";position:absolute;width:2px;left:-1px;top:0;bottom:0;background:var(--accent)}.toc a:hover{color:var(--ink)}
+    .article{min-width:0}section{scroll-margin-top:30px;margin:0 0 78px}h2{font-size:30px;font-weight:480;line-height:1.2;letter-spacing:-.025em;margin:0 0 23px;text-wrap:balance}h3{font-size:19px;font-weight:550;line-height:1.35;letter-spacing:-.015em;margin:28px 0 12px}p{font-size:16px;line-height:1.8;margin:0 0 20px;color:#465149}.lead{font-size:20px;line-height:1.6;color:var(--ink)}strong{font-weight:580;color:var(--ink)}code{font-family:Consolas,"SFMono-Regular",monospace;font-size:.84em;color:var(--ink);background:var(--faint);border-radius:3px;padding:2px 5px;overflow-wrap:anywhere}.term{display:inline-flex;align-items:center;gap:4px;border:0;border-bottom:1px dotted #8aa594;padding:0 3px;background:var(--tint);color:var(--accent);border-radius:3px;line-height:1.4;cursor:help;vertical-align:baseline;transition:background 150ms}.term .icon{width:14px;height:14px;opacity:.75}.term:hover,.term[aria-expanded="true"]{background:#d5e7dc}.note{font-size:12px;color:var(--muted);line-height:1.75}.note a:hover{color:var(--accent)}.key-point{display:grid;grid-template-columns:22px 1fr;gap:12px;background:var(--tint);padding:18px 20px;border-radius:5px;margin:26px 0}.key-point p{font-size:14px;line-height:1.65;margin:0;color:var(--accent)}.key-point .icon{margin-top:2px}.scan-list{list-style:none;padding:0;margin:24px 0;display:grid;gap:0}.scan-list li{display:grid;grid-template-columns:140px 1fr;gap:18px;border-top:1px solid var(--line);padding:13px 0;font-size:14px;line-height:1.6}.scan-list li:last-child{border-bottom:1px solid var(--line)}.scan-list b{font-weight:550}.scan-list span{color:var(--muted)}
+    .layers{margin:28px 0 24px;border-top:1px solid var(--line)}.layer{display:grid;grid-template-columns:28px 170px 1fr;align-items:start;gap:18px;border-bottom:1px solid var(--line);padding:19px 0}.layer>.icon{width:24px;height:24px;margin-top:3px}.layer small{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}.layer b{font-size:15px;font-weight:550;display:block}.layer p{font-size:13px;line-height:1.7;margin:0}.layer:hover b{color:var(--accent)}
+    .wide-figure{margin:30px -40px 26px;width:calc(100% + 80px);background:var(--faint);border:1px solid var(--line);border-radius:18px;padding:25px 28px}.figure-top{display:flex;align-items:center;justify-content:space-between;gap:20px}.figure-label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:550}.figure-label .icon{width:18px;height:18px}.tabs{display:flex;border:1px solid var(--line);padding:3px;border-radius:99px;background:var(--paper);gap:3px}.tabs button{border:0;border-radius:99px;padding:8px 16px;font-size:12px;background:none;transition:background 150ms,color 150ms}.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}.diagram-caption{font-size:11px;line-height:1.7;color:var(--muted);margin-top:17px}.rail{display:flex;list-style:none;padding:0;margin:31px 0 25px;isolation:isolate}.rail li{flex:1;position:relative;min-width:0}.rail li:not(:last-child)::after{content:"";position:absolute;height:1px;background:#c9d3cb;width:100%;left:50%;top:26px;z-index:-1;transition:background 160ms}.rail li.done:not(:last-child)::after{background:var(--accent)}.step{width:100%;border:0;background:none;padding:0 3px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px}.step .disc{width:52px;height:52px;display:grid;place-items:center;border:1px solid #c9d3cb;border-radius:50%;background:var(--faint);transition:transform 150ms,background 150ms,border-color 150ms}.disc .icon{width:23px;height:23px;transition:filter 150ms}.step:hover .disc{transform:translateY(-1px);border-color:var(--accent)}.step.selected .disc{background:var(--ink);border-color:var(--ink)}.step.selected .disc .icon{filter:invert(1)}.rail li.done .disc{border-color:#9fbda9;background:var(--tint)}.step b{font-size:12px;font-weight:550;line-height:1.35}.step small{font:10px Consolas,monospace;color:var(--muted);line-height:1.5}.step-explainer{min-height:157px;border-top:1px solid var(--line);padding:21px 0 0}.step-explainer h3{font-size:18px;margin:0 0 8px}.step-explainer p{font-size:13px;line-height:1.75;margin:0}.figure-controls{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:12px}.control{display:inline-flex;align-items:center;gap:7px;border:1px solid #cbd5ce;border-radius:99px;padding:9px 14px;font-size:12px;background:var(--paper);transition:background 150ms}.control .icon{width:15px;height:15px}.control:hover{background:var(--tint)}.control.primary{background:var(--ink);color:white;border-color:var(--ink)}.control.primary .icon{filter:invert(1)}.control.primary:hover{background:#354b3e}.control-group{display:flex;gap:8px}.step-count{font:11px Consolas,monospace;color:var(--muted)}
+    .example{border-left:2px solid #a6baac;padding:2px 0 2px 19px;margin:25px 0}.example .label{font-size:11px;color:var(--muted);margin-bottom:10px}.example p{font-size:14px;margin-bottom:8px}.example p:last-child{margin-bottom:0}.search-compare{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:27px 0}.search-track{padding:21px 22px}.search-track+ .search-track{background:var(--faint);border-left:1px solid var(--line)}.search-track h3{display:flex;gap:9px;align-items:center;font-size:15px;margin:0 0 10px}.search-track p{font-size:13px;line-height:1.7;margin:0}.search-track small{display:block;font:11px Consolas,monospace;color:var(--accent);margin-top:12px}
+    .graph-figure{padding-bottom:20px}.graph-legend{display:flex;gap:15px;flex-wrap:wrap}.graph-legend button{display:flex;gap:5px;align-items:center;background:none;border:0;border-bottom:1px solid transparent;padding:4px 0;font-size:11px;color:var(--muted)}.graph-legend .icon{width:14px;height:14px}.graph-legend button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}.graph-view{position:relative;margin-top:14px;aspect-ratio:2.2}.graph-view svg{width:100%;height:100%;display:block;overflow:visible}.graph-edge{stroke:#b9c7bd;stroke-width:1;transition:opacity 160ms,stroke 160ms}.graph-edge.link{stroke:var(--accent);stroke-width:1.5}.graph-node{cursor:pointer;outline:none}.graph-node circle{fill:var(--paper);stroke:#8da494;stroke-width:1;transition:fill 150ms,stroke 150ms}.graph-node text{font:13px Geist,sans-serif;fill:var(--ink);pointer-events:none}.graph-node:hover circle,.graph-node:focus-visible circle{fill:var(--tint);stroke:var(--accent);stroke-width:2}.graph-node.selected circle{fill:var(--accent);stroke:var(--accent)}.graph-node.selected text{font-weight:600}.graph-node.folder circle{fill:var(--tint)}.graph-node.folder.selected circle{fill:var(--accent)}.graph-detail{border-top:1px solid var(--line);padding-top:16px;min-height:90px}.graph-detail b{font-size:14px;font-weight:550}.graph-detail p{font-size:13px;line-height:1.7;margin:5px 0 0}
+    .lifecycle{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:25px 0 14px}.state{display:inline-flex;align-items:center;gap:7px;font:12px Consolas,monospace;padding:11px 13px;background:var(--faint);border:1px solid var(--line);border-radius:6px}.state .icon{width:17px;height:17px}.state.proposed{background:var(--tint);border-color:#b7ccbe;color:var(--accent)}.state-arrow{width:16px;height:16px;opacity:.6}.lifecycle-caption{font-size:12px;line-height:1.7;color:var(--muted)}.facts{margin:28px 0 0}.facts details{border-top:1px solid var(--line);padding:19px 0}.facts details:last-child{border-bottom:1px solid var(--line)}summary{cursor:pointer;font-size:15px;list-style:none;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:16px}summary::-webkit-details-marker{display:none}summary .icon{width:17px;height:17px;transition:transform 150ms}details[open] summary .icon{transform:rotate(180deg)}details p{font-size:14px;margin:14px 30px 0 0;line-height:1.8}
+    details::details-content{block-size:0;overflow-y:clip;transition:block-size 250ms var(--ease),content-visibility 250ms allow-discrete}details[open]::details-content{block-size:auto}
+    .footer{width:calc(100% - 80px);max-width:970px;margin:0 auto;padding:28px 0 35px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:20px;color:var(--muted);font-size:11px}.footer a{display:flex;align-items:center;gap:6px;text-decoration:none}.footer a:hover{color:var(--ink)}
+    .tooltip{position:fixed;z-index:5;width:290px;max-width:calc(100vw - 28px);padding:15px 17px;background:var(--ink);color:#f6f8f6;border-radius:8px;box-shadow:0 5px 15px #15251d15;pointer-events:none;font-size:12px;line-height:1.7;opacity:0;transform:translateY(2px);transition:opacity 120ms,transform 120ms}.tooltip.visible{opacity:1;transform:none}.tooltip b{display:block;font-size:13px;font-weight:550;margin-bottom:5px}
+    @media(prefers-reduced-motion:no-preference){.reveal{transition:opacity 150ms var(--ease),transform 150ms var(--ease)}.reveal.pending{opacity:.97;transform:translateY(2px)}}
+    @media(max-width:1100px){h1{font-size:54px}.reading-layout{grid-template-columns:130px minmax(0,1fr);gap:36px}.wide-figure{width:100%;margin-left:0;margin-right:0;padding:23px}.layer{grid-template-columns:24px 145px 1fr;gap:14px}.step small{font-size:9px}}
+    @media(max-width:767px){.hero,.reading-layout,.footer{width:calc(100% - 40px)}.hero{padding-top:28px}.hero-head{margin-bottom:27px}.eyebrow{font-size:9px;margin-bottom:18px}h1{font-size:38px;line-height:1.14;max-width:540px;margin-bottom:18px}.hero-break{display:none}.dek{font-size:14px;max-width:460px}.metadata{display:grid;grid-template-columns:1fr 1fr;gap:17px 12px;margin:25px 0 0;font-size:10px}.metadata dt{font-size:8px}.cover{aspect-ratio:1.6;border-radius:18px}.cover img{object-position:51% center}.cover-caption{font-size:10px}.cover-caption span:last-child{display:none}.reading-layout{display:block;margin-top:35px}.sidebar{position:static;padding:0;margin-bottom:32px}.sidebar-title{display:none}.toc{display:flex;overflow-x:auto;gap:20px;padding:0 0 12px;border-left:0;border-bottom:1px solid var(--line)}.toc a{white-space:nowrap;font-size:11px;padding-left:0}.toc a.active::before{display:none}.article{width:100%}section{margin-bottom:53px}h2{font-size:27px;line-height:1.22;margin-bottom:19px}.lead{font-size:18px}p{font-size:15px;line-height:1.8}.scan-list li{grid-template-columns:105px 1fr;gap:14px;font-size:13px}.key-point{padding:16px;gap:10px}.key-point p{font-size:13px}.layer{grid-template-columns:24px 1fr;gap:5px 12px;padding:17px 0}.layer>.icon{grid-row:span 2}.layer p{grid-column:2;font-size:12px}.layer b{font-size:15px}.layer small{font-size:10px}.wide-figure{padding:19px 16px;border-radius:16px}.figure-top{gap:10px}.figure-label{font-size:12px}.figure-label .icon{width:16px;height:16px}.tabs button{font-size:11px;padding:7px 12px}.rail{display:grid;grid-template-columns:1fr 1fr;gap:19px 12px;margin:25px 0}.rail li:not(:last-child)::after{display:none}.step{display:grid;grid-template-columns:41px 1fr;gap:3px 9px;text-align:left;align-items:center}.step .disc{width:41px;height:41px;grid-row:span 2}.disc .icon{width:20px;height:20px}.step b{font-size:11px}.step small{font-size:9px}.step-explainer{min-height:186px;padding-top:18px}.step-explainer p{font-size:12px}.step-explainer h3{font-size:17px}.step-count{font-size:10px}.control{padding:8px 11px;font-size:11px;gap:5px}.control .icon{width:13px;height:13px}.control-group{gap:6px}.search-compare{grid-template-columns:1fr}.search-track{padding:18px}.search-track+ .search-track{border-left:0;border-top:1px solid var(--line)}.graph-figure .figure-top{display:block}.graph-legend{margin-top:13px;gap:13px}.graph-view{aspect-ratio:1.7;margin:18px -7px 12px}.graph-node text{font-size:22px}.graph-detail{min-height:123px}.graph-detail p{font-size:12px}.lifecycle{gap:6px}.state{padding:9px 10px;font-size:11px;gap:5px}.state .icon{width:14px;height:14px}.state-arrow{width:12px;height:12px}.footer{padding:25px 0;align-items:flex-start;flex-direction:column;gap:12px}summary{font-size:14px}details p{font-size:13px;margin-right:0}}
+    @media(max-width:380px){.hero,.reading-layout,.footer{width:calc(100% - 32px)}h1{font-size:34px}.metadata{gap:17px}.state{padding:8px}.lifecycle{gap:5px}.graph-legend{gap:10px}.control{padding:8px}.figure-label{font-size:11px}.figure-label .icon{display:none}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.reveal.pending{opacity:1;transform:none}}
+    @media print{.sidebar,.figure-controls,.tooltip,.author-card,.hero,.reading-layout,.footer,.hero{padding-top:25px}.reading-layout{display:block;max-width:750px}.cover{max-height:250px}.reveal.pending{opacity:1;transform:none}.wide-figure{width:100%;margin-left:0;margin-right:0;break-inside:avoid}section{margin-bottom:28px}.article a{text-decoration:none}.footer{padding:15px 0}details:not([open])>p{display:block}.progress{display:none}details::details-content{block-size:auto;transition:none}}
+    .control .icon,.term .icon,.graph-legend .icon,.author-links .icon{transition:transform 160ms cubic-bezier(.16,1,.3,1)}
+    .control:hover .icon,.control:focus-visible .icon{transform:translateX(2px)}.control.primary:hover .icon{transform:scale(1.08)}.term:hover .icon{transform:translateY(-1px)}.graph-legend button:hover .icon{transform:rotate(-7deg)}.author-links a:hover .icon,.author-links a:focus-visible .icon{transform:rotate(-6deg) scale(1.06)}
+    .connection-list{margin:26px 0 30px;border-top:1px solid var(--line)}.connection-list>div{display:grid;grid-template-columns:170px 1fr;gap:24px;padding:18px 0;border-bottom:1px solid var(--line)}.connection-list dt{font-size:14px;font-weight:550;line-height:1.6}.connection-list dd{margin:0;font-size:14px;line-height:1.75;color:var(--muted)}
+    .author-button{border:0;background:none;padding:0;color:var(--ink);font-size:inherit;line-height:inherit;text-decoration:underline;text-decoration-color:#b4c6ba;text-underline-offset:4px}.author-button:hover{color:var(--accent);text-decoration-color:var(--accent)}.author-card{position:fixed;z-index:8;width:272px;max-width:calc(100vw - 28px);padding:19px;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #18291f12}.author-card h2{font-size:17px;margin:0 0 6px;letter-spacing:-.015em}.author-card p{font-size:12px;line-height:1.6;margin:0;color:var(--muted)}.author-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.author-links:empty{display:none}.author-links a{display:grid;place-items:center;width:44px;height:44px;padding:9px;border-radius:6px;text-decoration:none;font-size:13px}.author-links a:hover,.author-links a:focus-visible{background:var(--tint)}.author-links .icon{width:24px;height:24px}
+    @media(max-width:767px){.connection-list>div{grid-template-columns:1fr;gap:6px;padding:17px 0}.connection-list dt{font-size:14px}.connection-list dd{font-size:13px}.author-button{min-height:32px}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#article">Przejdź do artykułu</a>
+<div class="progress" aria-hidden="true"><span></span></div>
+<div class="sheet" id="top">
+  <main>
+    <div class="hero">
+      <div class="hero-head">
+        <div><p class="eyebrow">Architektura pamięci</p>
+          <h1>Second Brain, czyli pamięć<br class="hero-break"> poza oknem rozmowy</h1>
+          <p class="dek">Wspólne miejsce na notatki, decyzje i kontekst projektów.<br class="hero-break"> Jak agenci zapisują i odnajdują informacje przez MCP.</p>
+        </div>
+        <dl class="metadata"><div><dt>Publikacja</dt><dd><time datetime="2026-10-10">10 października 2026</time></dd></div><div class="byline"><dt>Napisane przez:</dt><dd><button class="author-button" id="author-button" type="button" aria-controls="author-card" aria-expanded="false" aria-haspopup="dialog">Kacper</button></dd></div><div><dt>Projekt</dt><dd>Second Brain</dd></div><div><dt>Czas czytania</dt><dd id="reading-time">7 min</dd></div></dl>
+      </div>
+      <figure class="cover"><img src="../shared/memory.png" width="1774" height="887" alt="Mózg ułożony z cienkich warstw papieru i karty notatek połączone delikatnymi liniami. Wygenerowana ilustracja wspólnej pamięci." fetchpriority="high"></figure>
+      <div class="cover-caption"><span>Notatki i powiązania między nimi. Ilustracja projektu.</span><span>Obraz wygenerowany</span></div>
+    </div>
+    <div class="reading-layout">
+      <aside class="sidebar" aria-label="Spis treści"><p class="sidebar-title">W tym artykule</p><nav class="toc"><a href="#pomysl" class="active">Po co wspólna pamięć</a><a href="#warstwy">Co jest w środku</a><a href="#zapis">Od notatki do indeksu</a><a href="#odczyt">Jak wraca kontekst</a><a href="#graf">Co pokazuje graf</a><a href="#zaufanie">Pamięć i zaufanie</a><a href="#polaczenie">Połączenie i uruchomienie</a><a href="#praktyka">Jak działa dziś</a></nav></aside>
+      <article class="article" id="article">
+        <section id="pomysl" class="reveal">
+          <h2>Jedna pamięć dla kilku agentów</h2>
+          <p class="lead">Oddzieliliśmy pamięć projektu od historii pojedynczych rozmów. Dzięki temu różni agenci mogą odnaleźć te same ustalenia i sprawdzić dokumenty źródłowe.</p>
+          <p>Decyzja o projekcie, poprawiona specyfikacja czy wynik testu mogą być potrzebne w kilku narzędziach. Brain udostępnia wspólny zbiór notatek przez <button class="term" data-term="mcp" type="button">MCP</button>. Klient zapisuje wybrane informacje, a przy kolejnym zadaniu pobiera pasujący kontekst.</p>
+          <ul class="scan-list" aria-label="Podstawowe operacje">
+            <li><b>Zapisz</b><span><code>brain_push</code> przyjmuje notatkę i kolejkuje jej przetwarzanie.</span></li>
+            <li><b>Znajdź</b><span><code>brain_pull</code> wyszukuje fragmenty związane z pytaniem.</span></li>
+            <li><b>Sprawdź</b><span><code>brain_open</code> otwiera pełny dokument wskazany w wyniku.</span></li>
+          </ul>
+          <div class="key-point"><img class="icon" src="../shared/icons/plugs-connected.svg" width="20" height="20" alt="" aria-hidden="true"><p>Klient decyduje, co zapisać i kiedy odczytać pamięć. Serwer nie przechwytuje sam wszystkich rozmów ani danych z każdej aplikacji.</p></div>
+          <p>Przy zapisywaniu decyzji warto zachować jej uzasadnienie. Notatka „wybraliśmy SQLite” podaje wynik. Dopisanie ograniczenia RAM-u i sposobu wdrożenia pozwala kolejnemu agentowi sprawdzić, czy wybór nadal pasuje do projektu.</p>
+        </section>
+        <section id="warstwy" class="reveal">
+          <h2>Co przechowuje system</h2>
+          <p>Podstawą są zwykłe pliki <button class="term" data-term="markdown" type="button">Markdown</button>. Można je otworzyć w edytorze, przejrzeć w Obsidianie albo przenieść na inny komputer. <button class="term" data-term="sqlite" type="button">SQLite</button> przechowuje indeks potrzebny do wyszukiwania oraz stan bieżącej pracy.</p>
+          <div class="layers" aria-label="Warstwy systemu">
+            <div class="layer"><img class="icon" src="../shared/icons/file-text.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Źródło treści</small><b>Vault z notatkami</b></div><p>Treść, tytuły, metadane, fakty i odwołania w plikach <code>.md</code>.</p></div>
+            <div class="layer"><img class="icon" src="../shared/icons/database.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Indeks i stan pracy</small><b>SQLite i wektory</b></div><p>Fragmenty dokumentów, słowa w <button class="term" data-term="fts5" type="button">FTS5</button> i wektory w <button class="term" data-term="sqlite_vec" type="button">sqlite-vec</button>.</p></div>
+            <div class="layer"><img class="icon" src="../shared/icons/plugs-connected.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Dostęp dla klientów</small><b>Serwer MCP</b></div><p>Narzędzia do odczytu, zapisu i edycji pamięci. Uprawnienia wynikają z roli klienta i policy.</p></div>
+            <div class="layer"><img class="icon" src="../shared/icons/cpu.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Przetwarzanie</small><b>Worker i modele</b></div><p>Sortowanie notatek, embeddingi, ocena wyników i przygotowanie odpowiedzi.</p></div>
+          </div>
+          <p>Indeks dokumentów można odbudować z vaulta. Z historią kolejki, akceptacji i audytu jest inaczej: te dane istnieją w bazie. Dlatego kopia plików Markdown i pełny backup SQLite zabezpieczają różne części systemu.</p>
+          <p class="note">Nazwa „vault” oznacza tu katalog notatek. Nie jest nazwą osobnej usługi ani wymaganiem używania Obsidiana.</p>
+        </section>
+        <section id="zapis" class="reveal">
+          <h2>Jak zapis trafia do pamięci</h2>
+          <p>Agent wywołuje <code>brain_push</code>. Serwer sprawdza treść, zapisuje notatkę do skrzynki wejściowej i dodaje ją do kolejki. Model nie musi odpowiedzieć, żeby przyjąć zapis. Kosztowniejsze porządki wykonuje później <button class="term" data-term="worker" type="button">worker</button>.</p>
+          <figure class="wide-figure" id="pipeline" aria-labelledby="pipeline-title">
+            <div class="figure-top"><span class="figure-label" id="pipeline-title"><img class="icon" src="../shared/icons/git-branch.svg" width="20" height="20" alt="" aria-hidden="true">Droga informacji</span><div class="tabs" role="tablist" aria-label="Wybierz proces"><button role="tab" aria-selected="true" aria-controls="pipeline-panel" id="tab-write" data-flow="write" type="button">Zapis</button><button role="tab" aria-selected="false" aria-controls="pipeline-panel" id="tab-read" data-flow="read" tabindex="-1" type="button">Odczyt</button></div></div>
+            <div id="pipeline-panel" role="tabpanel" aria-labelledby="tab-write"><ol class="rail" id="step-rail" aria-label="Kroki procesu"></ol><div class="step-explainer" id="step-explainer" aria-live="polite" aria-atomic="true"></div></div>
+            <div class="figure-controls"><span class="step-count" id="step-count"></span><div class="control-group"><button class="control" id="next-step" type="button">Dalej <img class="icon" src="../shared/icons/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"></button><button class="control primary" id="play-flow" type="button"><img class="icon" src="../shared/icons/play.svg" width="20" height="20" alt="" aria-hidden="true"><span>Odtwórz</span></button></div></div>
+            <figcaption class="diagram-caption">Wybierz etap albo odtwórz proces. To objaśnienie działania, a nie połączenie z prywatną pamięcią.</figcaption>
+            <noscript><p>Zapis: agent → brain_push → INBOX i kolejka → chunki i embeddingi → sortowanie → indeks. Odczyt: pytanie → FTS5 i wektory → RRF → reranker → fragmenty ze źródłami → odpowiedź.</p></noscript>
+          </figure>
+          <p>Worker dzieli tekst na <button class="term" data-term="chunk" type="button">chunki</button>, oblicza embeddingi i prosi model o folder, tagi oraz propozycje faktów. Potem aktualizuje plik i jego indeks. Każdy zapis ma identyfikator, źródło i metadane. <button class="term" data-term="idempotency" type="button">Idempotencja</button> pozwala ponowić żądanie z tym samym <code>request_id</code> bez tworzenia kolejnej notatki.</p>
+          <p>Awaria w połowie pracy nie powinna wymazać przyjętej treści. Mechanizm naprawczy odszukuje pliki, których indeks wymaga uzupełnienia. Kolejka ma też czasową rezerwację pracy, żeby stary worker nie zakończył zadania przejętego już przez inny.</p>
+        </section>
+        <section id="odczyt" class="reveal">
+          <h2>Jak Brain znajduje właściwy kontekst</h2>
+          <p>W notatce jest „wybraliśmy wariant lokalny ze względu na RAM”. Tydzień później pytasz „dlaczego nie postawiliśmy osobnej bazy?”. Samo dopasowanie słów może nie wystarczyć. Dlatego <code>brain_pull</code> uruchamia dwa tory wyszukiwania.</p>
+          <div class="example"><div class="label">Przykład poglądowy</div><p><strong>Notatka:</strong> „Zostajemy przy SQLite, żeby nie utrzymywać kolejnej usługi na maszynie z ograniczonym RAM-em”.</p><p><strong>Pytanie:</strong> „Dlaczego odrzuciliśmy osobny serwer danych?”.</p></div>
+          <div class="search-compare" aria-label="Dwa tory wyszukiwania">
+            <div class="search-track"><h3><img class="icon" src="../shared/icons/list-magnifying-glass.svg" width="20" height="20" alt="" aria-hidden="true">Dopasowanie słów</h3><p>FTS5 szuka w tekście dokumentów. Pomaga odnaleźć nazwy, terminy i konkretne wyrażenia.</p><small>SQLite / FTS5</small></div>
+            <div class="search-track"><h3><img class="icon" src="../shared/icons/stack.svg" width="20" height="20" alt="" aria-hidden="true">Podobieństwo znaczenia</h3><p>Wektory pozwalają odnaleźć zbliżoną treść także wtedy, gdy pytanie używa innych słów.</p><small>embedding / sqlite-vec</small></div>
+          </div>
+          <p><button class="term" data-term="fts5" type="button">FTS5</button> odnajduje słowa i wyrażenia. <button class="term" data-term="embedding" type="button">Embedding</button> zamienia tekst na wektor, dzięki któremu wyszukiwanie może porównać znaczenie pytania i zapisanych fragmentów. Algorytm <button class="term" data-term="rrf" type="button">RRF</button> łączy obie listy. Następnie <button class="term" data-term="reranker" type="button">reranker</button> ponownie ocenia wybranych kandydatów w odniesieniu do pytania.</p>
+          <p>Wynik zawiera fragment, ścieżkę dokumentu, status i informacje o zaufaniu. Jeśli trafienie jest słabe, serwer może oznaczyć je jako <code>low_confidence</code>. Agent dostaje więc także sygnał, że nie powinien budować pewnej odpowiedzi na tym materiale.</p>
+          <p>Tu pojawia się <button class="term" data-term="rag" type="button">RAG</button>: model odpowiada z dobranym kontekstem. Samo <code>brain_pull</code> zwraca wyniki; może je wykorzystać model klienta, a <code>brain_answer</code> udostępnia również ścieżkę generowania w Brainie. Źródła pozostają dostępne do sprawdzenia.</p>
+          <p class="note">W diagramie wyżej wybierz „Odczyt”, żeby obejrzeć kolejność wyszukiwania. Ilustracyjne przykłady nie pochodzą z prywatnego vaulta.</p>
+        </section>
+        <section id="graf" class="reveal">
+          <h2>Co pokazują połączenia w grafie</h2>
+          <p>Lista wyników odpowiada na konkretne pytanie. Graf jest przydatny, gdy chcesz przejrzeć projekt: zobaczyć dokumenty w jednym folderze, jawne odwołania między notatkami albo podobne treści. Kliknięcie węzła w panelu prowadzi do jego dokumentu.</p>
+          <figure class="wide-figure graph-figure" aria-labelledby="graph-title">
+            <div class="figure-top"><span class="figure-label" id="graph-title"><img class="icon" src="../shared/icons/tree-structure.svg" width="20" height="20" alt="" aria-hidden="true">Graf notatek</span><div class="graph-legend" aria-label="Rodzaje połączeń"><button data-edge="all" aria-pressed="true" type="button">Wszystkie</button><button data-edge="link" aria-pressed="false" type="button"><img class="icon" src="../shared/icons/link.svg" width="20" height="20" alt="" aria-hidden="true">Odwołania</button><button data-edge="folder" aria-pressed="false" type="button"><img class="icon" src="../shared/icons/folder.svg" width="20" height="20" alt="" aria-hidden="true">Folder</button></div></div>
+            <div class="graph-view"><svg viewBox="0 0 660 300" role="group" aria-label="Przykładowy graf notatek. Wybierz węzeł, aby przeczytać wyjaśnienie.">
+              <g id="graph-edges"><line class="graph-edge folder" x1="330" y1="150" x2="118" y2="66"/><line class="graph-edge folder" x1="330" y1="150" x2="160" y2="238"/><line class="graph-edge folder" x1="330" y1="150" x2="494" y2="60"/><line class="graph-edge folder" x1="330" y1="150" x2="540" y2="223"/><line class="graph-edge folder" x1="330" y1="150" x2="335" y2="269"/><line class="graph-edge link" x1="118" y1="66" x2="160" y2="238"/><line class="graph-edge link" x1="118" y1="66" x2="494" y2="60"/><line class="graph-edge link" x1="494" y1="60" x2="540" y2="223"/></g>
+              <g class="graph-node folder selected" data-node="project" tabindex="0" role="button" aria-label="Wybierz folder Projekt" aria-pressed="true"><circle cx="330" cy="150" r="16"/><text x="330" y="184" text-anchor="middle">Projekt</text></g>
+              <g class="graph-node" data-node="decision" tabindex="0" role="button" aria-label="Wybierz decyzja.md" aria-pressed="false"><circle cx="118" cy="66" r="9"/><text x="118" y="94" text-anchor="middle">decyzja.md</text></g>
+              <g class="graph-node" data-node="spec" tabindex="0" role="button" aria-label="Wybierz specyfikacja.md" aria-pressed="false"><circle cx="160" cy="238" r="9"/><text x="160" y="268" text-anchor="middle">specyfikacja.md</text></g>
+              <g class="graph-node" data-node="test" tabindex="0" role="button" aria-label="Wybierz testy.md" aria-pressed="false"><circle cx="494" cy="60" r="9"/><text x="494" y="89" text-anchor="middle">testy.md</text></g>
+              <g class="graph-node" data-node="deploy" tabindex="0" role="button" aria-label="Wybierz wdrożenie.md" aria-pressed="false"><circle cx="540" cy="223" r="9"/><text x="540" y="252" text-anchor="middle">wdrożenie.md</text></g>
+              <g class="graph-node" data-node="ideas" tabindex="0" role="button" aria-label="Wybierz pomysły.md" aria-pressed="false"><circle cx="335" cy="269" r="7"/><text x="335" y="297" text-anchor="middle">pomysły.md</text></g>
+            </svg></div>
+            <div class="graph-detail" id="graph-detail" aria-live="polite" aria-atomic="true"><b>Projekt</b><p>Węzeł grupujący. Linie do folderu mówią, gdzie leżą dokumenty; zielone linie pokazują jawne odwołania między notatkami.</p></div>
+            <figcaption class="diagram-caption">Przykładowe dane. Wybierz węzeł i przełącz typ połączeń. Diagram pokazuje dwa rodzaje relacji dostępnych w panelu.</figcaption>
+          </figure>
+          <p>Trzeba uważać z interpretacją linii. Wspólny folder oznacza organizację, a podobieństwo wektorów oznacza zbliżony tekst. Żadne z nich samo w sobie nie dowodzi związku przyczynowego. Obecne wyszukiwanie pracuje na fragmentach dokumentów. Widok grafu nie zamienia go automatycznie w <button class="term" data-term="graphrag" type="button">GraphRAG</button>.</p>
+        </section>
+        <section id="zaufanie" class="reveal">
+          <h2>Status faktów i granice dostępu</h2>
+          <p>Model może wyciągnąć z notatki użyteczny fakt. Może też coś źle zinterpretować. Dlatego zapis zawiera status i pochodzenie, zamiast traktować wszystko jednakowo.</p>
+          <div class="lifecycle" aria-label="Przykładowa ścieżka od zapisu do potwierdzenia"><span class="state"><img class="icon" src="../shared/icons/tray.svg" width="20" height="20" alt="" aria-hidden="true">captured</span><img class="state-arrow" src="../shared/icons/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"><span class="state proposed"><img class="icon" src="../shared/icons/brain.svg" width="20" height="20" alt="" aria-hidden="true">proposed</span><img class="state-arrow" src="../shared/icons/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"><span class="state"><img class="icon" src="../shared/icons/check-circle.svg" width="20" height="20" alt="" aria-hidden="true">confirmed</span></div>
+          <p class="lifecycle-caption">Zachowana notatka, propozycja faktu, potwierdzony fakt. Notatki i fakty mają własne statusy; nie każdy zapis przechodzi wszystkie etapy.</p>
+          <p>Worker oznacza wnioski modelu jako <code>proposed</code>. Uprawniony człowiek może potwierdzić albo skorygować fakt. Obecny kod ma również nocny proces <code>dream</code>: porządkuje pamięć i może awansować powtarzający się fakt, jeśli występuje w co najmniej dwóch źródłach i nie został oznaczony jako sprzeczny. To reguła zgodności zapisów. Dwa powtórzenia błędu nadal mogą być błędem.</p>
+          <p>Dostęp i akceptacja działania to osobne decyzje. Rola określa, z jakich narzędzi pamięci może korzystać klient, a policy wskazuje działania wymagające zgody. Rola HUMAN udostępnia operacje administracyjne, dlatego jej dane dostępowe wymagają szczególnej ochrony.</p>
+          <p>Treść notatki jest materiałem do przeczytania. Jeśli dokument mówi „zignoruj wcześniejsze zasady”, nie staje się przez to poleceniem dla agenta. Oddzielenie danych od instrukcji jest częścią kontraktu MCP tego projektu.</p>
+        </section>
+        <section id="polaczenie" class="reveal">
+          <h2>Jak można połączyć się z Brainem</h2>
+          <p>Zostawiliśmy MCP jako wspólny interfejs. Sposób przesyłania wiadomości zależy od tego, gdzie działają klient i serwer. Narzędzia do zapisu i odczytu pamięci pozostają te same.</p>
+          <dl class="connection-list">
+            <div><dt>Lokalny proces / stdio</dt><dd>Klient uruchamia Brain na tym samym komputerze i komunikuje się przez wejście oraz wyjście procesu. Dostęp wynika z uprawnień konta systemowego, które go uruchamia.</dd></div>
+            <div><dt>Lokalne lub zdalne HTTP</dt><dd>Klient łączy się przez Streamable HTTP. Może to być usługa na tym samym komputerze albo serwer na innej maszynie. Dostęp zdalny wymaga szyfrowanego połączenia i uwierzytelnienia.</dd></div>
+            <div><dt>Własna aplikacja</dt><dd>Aplikacja może używać SDK klienta MCP albo adaptera wywołującego te same narzędzia. Osobne REST API byłoby dodatkowym interfejsem do zbudowania, a nie gotową częścią tego rozwiązania.</dd></div>
+            <div><dt>Odczyt plików</dt><dd>Notatki Markdown można czytać w edytorze bez klienta MCP. To dostęp do plików, nie do wyszukiwania, kolejki ani narzędzi akceptacji serwera.</dd></div>
+          </dl>
+          <h3>Na jednym komputerze albo na VM</h3>
+          <p>W wariancie lokalnym serwer, notatki i indeks znajdują się na Twoim komputerze. Modele mogą działać lokalnie, jeśli maszyna ma wystarczające zasoby, albo korzystać ze skonfigurowanej usługi zewnętrznej. Lokalne pliki nie oznaczają automatycznie, że każda operacja działa offline.</p>
+          <p>U nas usługa Brain działa na maszynie wirtualnej. Kilku klientów może korzystać ze wspólnej pamięci bez przenoszenia vaulta między komputerami. Modele mogą pracować na VM albo na innej maszynie. VM zmienia miejsce uruchomienia usługi, ale sama nie zabezpiecza dostępu.</p>
+          <h3>Dostęp do pamięci trzeba zabezpieczyć osobno</h3>
+          <p>Serwer HTTP sprawdza token Bearer przed udostępnieniem narzędzi MCP. Token wskazuje rolę, a rola i policy określają dozwolone działania. Szyfrowane połączenie chroni dane w drodze; uwierzytelnienie określa, kto dostaje dostęp.</p>
+          <p>Przy dostępie zdalnym warto pozostać w prywatnej sieci albo udostępnić usługę przez HTTPS z uwierzytelnieniem. Dane dostępowe powinny być w bezpiecznej konfiguracji klienta, nigdy w publicznym artykule, kodzie strony ani udostępnionym linku.</p>
+          <p class="note">Obecna integracja korzysta ze skonfigurowanych tokenów. Osobne dane dostępowe dla klientów, ich unieważnianie i rotacja to dalsze prace nad zabezpieczeniami. Pełne logowanie OAuth 2.1 jest opcją dla zgodnych klientów zdalnych, a nie funkcją przedstawianą tutaj jako już wdrożona.</p>
+        </section>
+        <section id="praktyka" class="reveal">
+          <h2>Kolejka, wydajność i ograniczenia</h2>
+          <p>To ma też konsekwencje dla czasu odpowiedzi. Zapis przez <code>brain_push</code> trafia do kolejki, natomiast bezpośrednia edycja przez <code>brain_note_write</code> odświeża indeks i może obliczać embeddingi. Duży import oraz krótkie pytanie mają bardzo różny koszt. Embedder na CPU oddaje zapytaniom pierwszeństwo między kolejnymi fragmentami dokumentu.</p>
+          <h3>Najczęstsze pytania</h3>
+          <div class="facts">
+            <details name="brain-faq"><summary><span>Czy Brain sam staje się „mądrzejszy”?</span><img class="icon" src="../shared/icons/caret-down.svg" width="20" height="20" alt="" aria-hidden="true"></summary><p>Rośnie zbiór zapisanych informacji, poprawia się jego organizacja i można znaleźć więcej kontekstu. Te operacje nie zmieniają wag modelu językowego. Jakość odpowiedzi zależy nadal od treści notatek, wyszukiwania i modelu, który z nich korzysta.</p></details>
+            <details name="brain-faq"><summary><span>Czy wszystkie programy mogą z niego korzystać?</span><img class="icon" src="../shared/icons/caret-down.svg" width="20" height="20" alt="" aria-hidden="true"></summary><p>Program potrzebuje klienta MCP albo adaptera, który wywoła narzędzia serwera. Samo istnienie serwera nie podłącza automatycznie każdej aplikacji. To klient decyduje również, kiedy zapisać ważne ustalenie i kiedy szukać wcześniejszej wiedzy.</p></details>
+            <details name="brain-faq"><summary><span>Co zostaje, gdy model nie odpowiada?</span><img class="icon" src="../shared/icons/caret-down.svg" width="20" height="20" alt="" aria-hidden="true"></summary><p>Pliki Markdown pozostają dostępne. Przyjęty zapis jest w INBOX-ie i kolejce, a wyszukiwanie słowne może działać bez wektorów. Sortowanie i generowanie odpowiedzi potrzebują sprawnego modelu. Poszczególne funkcje mają więc różne zależności.</p></details>
+          </div>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><span>Second Brain / Kacper</span><span>Poprawione przez AI, nie napisane w całości.</span><span>Artykuł i diagramy działają offline.</span><a href="#top">Wróć na początek</a></footer>
+</div>
+<div class="tooltip" id="glossary-tooltip" role="tooltip" hidden></div>
+<div class="author-card" id="author-card" role="dialog" aria-label="Profile Kacpra" tabindex="-1" hidden><h2>Kacper</h2><p>Autor tego artykułu.</p><div class="author-links" id="author-links"><a href="https://github.com/" target="_blank" rel="noopener noreferrer" aria-label="GitHub, otwiera nową kartę" title="GitHub"><img class="icon profile-icon" src="../shared/icons/github-logo.svg" width="24" height="24" alt="" aria-hidden="true"></a></div></div>
+<script>
+  'use strict';
+  const glossary={
+    sqlite:['SQLite','Baza danych zapisana w pliku. W tym projekcie przechowuje indeks dokumentów oraz stan kolejki, akceptacji i audytu.'],
+    sqlite_vec:['sqlite-vec','Rozszerzenie SQLite do wyszukiwania wektorowego. Porównuje embedding pytania z wektorami zapisanych fragmentów dokumentów.'],
+    fts5:['FTS5','Moduł pełnotekstowego wyszukiwania w SQLite. Buduje indeks słów dokumentów i pozwala odnaleźć pasujące wyrażenia.'],
+    mcp:['MCP','Model Context Protocol. Wspólny sposób, w jaki klient AI wywołuje narzędzia serwera. W Brainie służy m.in. do zapisu i pobierania notatek.'],
+    markdown:['Markdown','Zwykły tekst z oznaczeniami nagłówków, list i linków. Plik .md można czytać nawet bez aplikacji, która go utworzyła.'],
+    worker:['Worker','Proces działający w tle. Odbiera zadania z kolejki i wykonuje kosztowniejsze operacje, np. obliczanie embeddingów i sortowanie notatki.'],
+    chunk:['Chunk','Fragment dokumentu używany w wyszukiwaniu. System dobiera fragmenty związane z pytaniem, zamiast wkładać cały vault do kontekstu modelu.'],
+    idempotency:['Idempotencja','Ponowienie tego samego żądania daje ten sam zapis. request_id pozwala rozpoznać próbę ponownego wysłania, np. po utracie połączenia.'],
+    embedding:['Embedding','Liczbowy wektor opisujący tekst. Podobne znaczeniowo pytania i fragmenty mogą leżeć blisko siebie w tej przestrzeni, nawet gdy używają innych słów.'],
+    rrf:['RRF','Reciprocal Rank Fusion. Łączy rankingi według pozycji wyników. Nie trzeba porównywać bezpośrednio różnych skal punktów FTS5 i wyszukiwania wektorowego.'],
+    reranker:['Reranker','Model oceniający parę: pytanie i znaleziony fragment. Porządkuje krótką listę kandydatów dokładniej niż samo pierwsze wyszukiwanie.'],
+    rag:['RAG','Retrieval-Augmented Generation. Najpierw system pobiera kontekst, potem model używa go w odpowiedzi. Dostarczenie notatek nie jest trenowaniem modelu.'],
+    graphrag:['GraphRAG','Podejście, w którym graf relacji uczestniczy w pobieraniu lub budowaniu kontekstu. Rysunek połączeń między notatkami sam w sobie tego nie zapewnia.']
+  };
+  const flows={
+  "write": [
+    [
+      "robot",
+      "Agent",
+      "MCP",
+      "Klient wybiera, co zachować",
+      "Agent wysyła treść, tytuł i informacje o źródle. Sam Brain nie przechwytuje automatycznie każdej rozmowy ze wszystkich programów."
+    ],
+    [
+      "plus-circle",
+      "Zapis",
+      "brain_push",
+      "Walidacja przed zapisem",
+      "Serwer sprawdza treść i identyfikator żądania. Sekretów nie należy wkładać do pamięci; ponowiony request_id pozwala odnaleźć istniejący zapis."
+    ],
+    [
+      "tray",
+      "INBOX",
+      "queue",
+      "Treść jest już zachowana",
+      "Powstaje plik Markdown i zadanie w kolejce. Przyjęcie notatki nie czeka na sortujący model. Model wykona następną część w tle."
+    ],
+    [
+      "stack",
+      "Fragmenty",
+      "embedding",
+      "Dokument staje się przeszukiwalny",
+      "Worker dzieli tekst na chunki. Indeksuje słowa i oblicza embeddingi fragmentów do późniejszego wyszukiwania po znaczeniu."
+    ],
+    [
+      "brain",
+      "Porządki",
+      "LLM",
+      "Model proponuje miejsce i fakty",
+      "Sorter wybiera folder z dozwolonej listy, tagi i propozycje faktów. Wnioski modelu dostają status proposed. Kod sprawdza wynik przed zmianą notatki."
+    ],
+    [
+      "database",
+      "Indeks",
+      "SQLite",
+      "Plik i indeks znów są zgodne",
+      "Worker aktualizuje metadane dokumentu, chunki, wektory i fakty. Zamyka zadanie oraz zapisuje zdarzenie w audycie."
+    ]
+  ],
+  "read": [
+    [
+      "magnifying-glass",
+      "Pytanie",
+      "brain_pull",
+      "Zapytanie z właściwym zakresem",
+      "Serwer ustala przestrzenie dozwolone dla roli. Można zawęzić pytanie do projektu lub space, zanim powstanie lista kandydatów."
+    ],
+    [
+      "list-magnifying-glass",
+      "Dwa tory",
+      "FTS + vector",
+      "Słowa i znaczenie",
+      "FTS5 szuka w tekście. Embedder oblicza wektor pytania, a sqlite-vec dobiera podobne fragmenty. Oba tory korzystają z filtrów dostępu."
+    ],
+    [
+      "git-merge",
+      "Połączenie",
+      "RRF",
+      "Jedna lista kandydatów",
+      "RRF łączy pozycje z rankingu słownego i semantycznego. Fragment obecny wysoko w obu listach może dostać lepszą pozycję."
+    ],
+    [
+      "sort-descending",
+      "Ocena",
+      "reranker",
+      "Drugie spojrzenie na wyniki",
+      "Reranker porównuje pytanie z wybranymi fragmentami. Słabe trafienia mogą otrzymać low_confidence. Wynik nadal wymaga sensownej interpretacji."
+    ],
+    [
+      "file-text",
+      "Źródła",
+      "path + status",
+      "Kontekst z pochodzeniem",
+      "Klient dostaje treść, ścieżkę i metadane. brain_open pozwala otworzyć pełny dokument i sprawdzić, czy fragment rzeczywiście uzasadnia odpowiedź."
+    ],
+    [
+      "chat-circle-text",
+      "Odpowiedź",
+      "RAG",
+      "Model korzysta z fragmentów",
+      "Model klienta może wykorzystać wyniki brain_pull. Wariant brain_answer buduje kontekst po stronie Braina. Samo pobranie wyników nie generuje odpowiedzi."
+    ]
+  ]
+};
+  const graphNotes={
+    project:['Projekt','Węzeł grupujący. Linie do folderu mówią, gdzie leżą dokumenty; zielone linie pokazują jawne odwołania między notatkami.'],
+    decision:['decyzja.md','Zawiera uzasadnienie wyboru i odwołania do specyfikacji oraz testów. W tym przykładzie zielone linie oznaczają linki wpisane w treść dokumentu.'],
+    spec:['specyfikacja.md','Opis założeń projektu. Link z decyzji pozwala wrócić do ograniczeń, które miały znaczenie podczas wyboru rozwiązania.'],
+    test:['testy.md','Opis sposobu sprawdzenia rozwiązania. Odwołanie do wdrożenia wskazuje drugi dokument; samo połączenie nie mówi, czy testy przechodzą teraz.'],
+    deploy:['wdrożenie.md','Ustalenia dotyczące uruchamiania projektu. To przykładowa notatka, a nie panel bieżącego stanu produkcji.'],
+    ideas:['pomysły.md','Dokument w tym samym folderze, bez jawnego linku do pozostałych. Wspólna lokalizacja nie musi oznaczać wspólnego wniosku.']
+  };
+  let flow='write',step=0,playTimer=null,tipTrigger=null;
+  const rail=document.getElementById('step-rail'),explainer=document.getElementById('step-explainer'),playButton=document.getElementById('play-flow'),tip=document.getElementById('glossary-tooltip');
+  function textElement(tag,text,className){const e=document.createElement(tag);e.textContent=text;if(className)e.className=className;return e;}
+  function createIcon(name){const img=document.createElement('img');img.className='icon';img.src='../shared/icons/'+name+'.svg';img.width=20;img.height=20;img.alt='';img.setAttribute('aria-hidden','true');return img;}
+  function setPlayState(playing){playButton.replaceChildren(createIcon(playing?'pause':'play'),textElement('span',playing?'Pauza':'Odtwórz'));playButton.setAttribute('aria-pressed',String(playing));}
+  function stopPlayback(){clearInterval(playTimer);playTimer=null;setPlayState(false);}
+  let renderedFlow=null,stepAnimation=null;
+  function renderFlow(){
+    if(renderedFlow!==flow){
+      rail.replaceChildren();
+      flows[flow].forEach((entry,i)=>{
+        const li=document.createElement('li'),button=document.createElement('button'),disc=document.createElement('span');
+        button.type='button';button.className='step';button.dataset.step=String(i);button.setAttribute('aria-label',entry[1]+' '+entry[2]+': '+entry[3]);
+        disc.className='disc';disc.append(createIcon(entry[0]));button.append(disc,textElement('b',entry[1]),document.createTextNode(' '),textElement('small',entry[2]));
+        button.addEventListener('click',()=>{stopPlayback();step=i;renderFlow();});li.append(button);rail.append(li);
+      });
+      renderedFlow=flow;
+    }
+    [...rail.children].forEach((li,i)=>{li.classList.toggle('done',i<step);const button=li.firstElementChild;button.classList.toggle('selected',i===step);button.setAttribute('aria-pressed',String(i===step));});
+    const entry=flows[flow][step];explainer.replaceChildren(textElement('h3',entry[3]),textElement('p',entry[4]));
+    stepAnimation?.cancel();
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&explainer.animate)stepAnimation=explainer.animate([{opacity:.94,transform:'translateY(1px)'},{opacity:1,transform:'translateY(0)'}],{duration:150,easing:'ease-out'});
+    document.getElementById('step-count').textContent=(step+1)+' / '+flows[flow].length;
+    document.querySelectorAll('[data-flow]').forEach(button=>{const selected=button.dataset.flow===flow;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});
+    document.getElementById('pipeline-panel').setAttribute('aria-labelledby','tab-'+flow);
+  }
+  document.querySelectorAll('[data-flow]').forEach(b=>{b.addEventListener('click',()=>{stopPlayback();flow=b.dataset.flow;step=0;renderFlow();});b.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const target=document.getElementById(e.key==='Home'?'tab-write':e.key==='End'?'tab-read':b.id==='tab-write'?'tab-read':'tab-write');target.click();target.focus();});});
+  document.getElementById('next-step').addEventListener('click',()=>{stopPlayback();step=(step+1)%flows[flow].length;renderFlow();});
+  playButton.setAttribute('aria-pressed','false');playButton.addEventListener('click',()=>{if(playTimer){stopPlayback();return;}if(step===flows[flow].length-1)step=0;renderFlow();setPlayState(true);playTimer=setInterval(()=>{if(step>=flows[flow].length-1){stopPlayback();return;}step++;renderFlow();if(step===flows[flow].length-1)stopPlayback();},2300);});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopPlayback();});
+  function hideTip(){tip.classList.remove('visible');tip.hidden=true;if(tipTrigger){tipTrigger.setAttribute('aria-expanded','false');tipTrigger.removeAttribute('aria-describedby');}tipTrigger=null;}
+  function showTip(button){const definition=glossary[button.dataset.term];if(!definition)return;hideTip();tipTrigger=button;tip.replaceChildren(textElement('b',definition[0]),textElement('span',definition[1]));tip.hidden=false;button.setAttribute('aria-describedby',tip.id);button.setAttribute('aria-expanded','true');const r=button.getBoundingClientRect(),t=tip.getBoundingClientRect();const left=Math.max(14,Math.min(innerWidth-t.width-14,r.left+r.width/2-t.width/2));const below=r.bottom+12;const top=below+t.height<innerHeight-14?below:Math.max(14,r.top-t.height-12);tip.style.left=left+'px';tip.style.top=top+'px';tip.classList.add('visible');}
+  const termIcons={mcp:'plugs-connected',markdown:'file-text',worker:'cpu',chunk:'stack',idempotency:'fingerprint',embedding:'stack',rrf:'git-merge',reranker:'sort-descending',rag:'chat-circle-text',graphrag:'tree-structure',sqlite:'database',sqlite_vec:'database',fts5:'list-magnifying-glass'};
+  document.querySelectorAll('[data-term]').forEach(button=>button.prepend(createIcon(termIcons[button.dataset.term]||'file-text')));
+  document.querySelectorAll('[data-term]').forEach(b=>{b.setAttribute('aria-expanded','false');b.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')showTip(b);});b.addEventListener('pointerleave',()=>{if(document.activeElement!==b)hideTip();});b.addEventListener('focus',()=>showTip(b));b.addEventListener('blur',hideTip);b.addEventListener('click',()=>{if(tipTrigger===b&&tip.classList.contains('visible')&&b.dataset.tapped==='true'){hideTip();b.dataset.tapped='false';}else{showTip(b);b.dataset.tapped='true';}});});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip();});document.addEventListener('pointerdown',e=>{if(!e.target.closest('[data-term]'))hideTip();});window.addEventListener('resize',hideTip);document.addEventListener('wheel',hideTip,{passive:true});document.addEventListener('touchmove',hideTip,{passive:true});
+  function selectNode(node){const entry=graphNotes[node.dataset.node];document.querySelectorAll('.graph-node').forEach(n=>{const selected=n===node;n.classList.toggle('selected',selected);n.setAttribute('aria-pressed',String(selected));});document.getElementById('graph-detail').replaceChildren(textElement('b',entry[0]),textElement('p',entry[1]));}
+  document.querySelectorAll('.graph-node').forEach(n=>{n.addEventListener('click',()=>selectNode(n));n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectNode(n);}});});
+  document.querySelectorAll('[data-edge]').forEach(b=>b.addEventListener('click',()=>{const kind=b.dataset.edge;document.querySelectorAll('[data-edge]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.querySelectorAll('.graph-edge').forEach(e=>e.style.opacity=kind==='all'||e.classList.contains(kind)?'1':'.1');}));
+  const faqItems=[...document.querySelectorAll('.facts details')];
+  faqItems.forEach(item=>item.addEventListener('toggle',()=>{if(item.open)faqItems.forEach(other=>{if(other!==item)other.open=false;});}));
+  const sections=document.querySelectorAll('.article section'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  reduced.addEventListener('change',()=>{if(reduced.matches){stopPlayback();stepAnimation?.cancel();sections.forEach(section=>section.classList.remove('pending'));}});
+  if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;entry.target.classList.remove('pending');document.querySelectorAll('.toc a').forEach(a=>{const active=a.hash==='#'+entry.target.id;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current');});});},{rootMargin:'-5% 0px -45% 0px',threshold:0});sections.forEach(s=>{if(!reduced.matches)s.classList.add('pending');observer.observe(s);});}
+  document.getElementById('reading-time').textContent=Math.max(1,Math.ceil(document.querySelector('.article').textContent.trim().split(/\s+/).length/210))+' min';
+  const authorButton=document.getElementById('author-button'),authorCard=document.getElementById('author-card');
+  let authorCloseTimer=null,authorPinned=false;
+  function cancelAuthorClose(){clearTimeout(authorCloseTimer);authorCloseTimer=null;}
+  function showAuthor(){
+    cancelAuthorClose();authorCard.hidden=false;authorButton.setAttribute('aria-expanded','true');
+    const button=authorButton.getBoundingClientRect(),card=authorCard.getBoundingClientRect();
+    authorCard.style.left=Math.max(14,Math.min(innerWidth-card.width-14,button.left+button.width/2-card.width/2))+'px';
+    authorCard.style.top=(button.bottom+8+card.height<innerHeight-14?button.bottom+8:Math.max(14,button.top-card.height-8))+'px';
+  }
+  function hideAuthor(){cancelAuthorClose();authorPinned=false;authorCard.hidden=true;authorButton.setAttribute('aria-expanded','false');}
+  function scheduleAuthorClose(){if(authorPinned)return;cancelAuthorClose();authorCloseTimer=setTimeout(()=>{if(!authorCard.contains(document.activeElement))hideAuthor();},200);}
+  authorButton.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showAuthor();});
+  authorButton.addEventListener('pointerleave',scheduleAuthorClose);
+  authorButton.addEventListener('focus',showAuthor);
+  authorButton.addEventListener('blur',event=>{if(!authorCard.contains(event.relatedTarget))scheduleAuthorClose();});
+  authorButton.addEventListener('click',()=>{if(authorPinned){hideAuthor();return;}authorPinned=true;showAuthor();});
+  authorButton.addEventListener('keydown',event=>{if(event.key==='ArrowDown'){event.preventDefault();showAuthor();(authorCard.querySelector('a')||authorCard).focus();}});
+  authorCard.addEventListener('pointerenter',cancelAuthorClose);
+  authorCard.addEventListener('pointerleave',scheduleAuthorClose);
+  authorCard.addEventListener('focusin',cancelAuthorClose);
+  authorCard.addEventListener('focusout',event=>{if(event.relatedTarget!==authorButton&&!authorCard.contains(event.relatedTarget))scheduleAuthorClose();});
+  document.addEventListener('pointerdown',event=>{if(!authorCard.contains(event.target)&&!authorButton.contains(event.target))hideAuthor();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!authorCard.hidden){if(authorCard.contains(document.activeElement))authorButton.focus({preventScroll:true});hideAuthor();}});
+  window.addEventListener('resize',hideAuthor);document.addEventListener('wheel',event=>{if(!authorCard.contains(event.target))hideAuthor();},{passive:true});
+  renderFlow();
+  (()=>{const bar=document.querySelector('.progress'),fill=bar&&bar.firstElementChild;if(!fill)return;let queued=false;const draw=()=>{queued=false;const room=document.documentElement.scrollHeight-innerHeight;fill.style.transform='scaleX('+(room>0?Math.min(1,Math.max(0,scrollY/room)):1)+')';};const queue=()=>{if(!queued){queued=true;requestAnimationFrame(draw);}};addEventListener('scroll',queue,{passive:true});addEventListener('resize',queue);addEventListener('load',queue);draw();})();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Editorial Article"
+  short_description: "Create clean, interactive project case-study articles"
+  default_prompt: "Use $editorial-article to turn verified project facts into an offline editorial article in English and Polish."

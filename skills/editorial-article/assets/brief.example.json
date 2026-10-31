@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-10",
+  "project": "Queue example",
+  "author": {"name": "Sample author", "profiles": [{"name": "GitHub", "url": "https://github.com/", "icon": "github-logo"}]},
+  "languages": {
+    "en": {
+      "title": "Keeping work outside the request",
+      "subtitle": "A fictional queue example showing how the article components work.",
+      "category": "Illustrative example",
+      "glossary": {"queue": {"title": "Queue", "text": "A collection of jobs waiting to be processed.", "icon": "tray"}},
+      "sections": [
+        {"id": "approach", "title": "What changes when work is queued", "blocks": [
+          {"type": "lead", "text": "This is a fictional demonstration, not a claim about a deployed service."},
+          {"type": "paragraph", "text": "The request records a job in a [term:queue|queue]. A background worker processes it later."},
+          {"type": "comparison", "items": [
+            {"title": "Request", "text": "Accepts the job.", "caption": "Receipt", "icon": "plus-circle"},
+            {"title": "Worker", "text": "Processes the accepted job.", "caption": "Background work", "icon": "cpu"}
+          ]},
+          {"type": "note", "text": "A real article can reference the models it discusses. The chips below are illustrative: the demo calls no service, and the links lead to the vendors' own pages."},
+          {"type": "models", "items": [
+            {"model": "GPT", "icon": "brand-openai", "note": "OpenAI", "url": "https://openai.com/"},
+            {"model": "Gemini", "icon": "brand-googlegemini", "note": "Google DeepMind", "url": "https://deepmind.google/models/gemini/"},
+            {"model": "Claude", "icon": "brand-anthropic", "note": "Anthropic", "url": "https://www.anthropic.com/claude"},
+            {"model": "Mistral", "icon": "brand-mistralai", "note": "Mistral AI", "url": "https://mistral.ai/"}
+          ]}
+        ]},
+        {"id": "process", "title": "Two short process explanations", "blocks": [
+          {"type": "pipeline", "title": "A queued job", "caption": "Illustrative flow, not live telemetry.", "flows": {
+            "capture": {"label": "Accept", "steps": [
+              {"title": "Receive", "heading": "Receive a request", "text": "The client submits a job.", "icon": "plugs-connected"},
+              {"title": "Record", "heading": "Record the job", "text": "The queue holds it for processing.", "icon": "tray"},
+              {"title": "Acknowledge", "heading": "Return a receipt", "text": "The request can finish before processing does.", "icon": "check-circle"}
+            ]},
+            "process": {"label": "Process", "steps": [
+              {"title": "Claim", "heading": "Claim a job", "text": "The worker takes a queued job.", "icon": "cpu"},
+              {"title": "Complete", "heading": "Record completion", "text": "The worker saves its result.", "icon": "database"}
+            ]}
+          }}
+        ]},
+        {"id": "relations", "title": "Grouping and explicit relationships", "blocks": [
+          {"type": "graph", "title": "A small example graph", "caption": "Sample data.", "nodes": [
+            {"id": "service", "title": "Service", "text": "Groups the example's components.", "x": 330, "y": 150},
+            {"id": "request", "title": "Request", "text": "Records the job.", "x": 120, "y": 65},
+            {"id": "worker", "title": "Worker", "text": "Processes it.", "x": 520, "y": 65},
+            {"id": "result", "title": "Result", "text": "Represents completion.", "x": 330, "y": 240}
+          ], "edges": [
+            {"from": "service", "to": "request", "kind": "group"},
+            {"from": "request", "to": "worker", "kind": "link"},
+            {"from": "worker", "to": "result", "kind": "link"}
+          ]}
+        ]},
+        {"id": "limits", "title": "What this example does not prove", "blocks": [
+          {"type": "faq", "items": [
+            {"question": "Does this measure latency?", "answer": "No. The diagram explains a process and contains no benchmark."},
+            {"question": "Does it connect to a queue?", "answer": "No. This is a static article with illustrative data."}
+          ]}
+        ]}
+      ]
+    },
+    "pl": {
+      "title": "Praca poza czasem żądania",
+      "subtitle": "Fikcyjny przykład kolejki pokazujący komponenty artykułu.",
+      "category": "Przykład poglądowy",
+      "glossary": {"queue": {"title": "Kolejka", "text": "Zbiór zadań oczekujących na przetworzenie.", "icon": "tray"}},
+      "sections": [
+        {"id": "approach", "title": "Co zmienia kolejka", "blocks": [
+          {"type": "lead", "text": "To fikcyjna demonstracja, a nie opis wdrożonej usługi."},
+          {"type": "paragraph", "text": "Żądanie zapisuje zadanie w [term:queue|kolejce]. Worker przetwarza je później."},
+          {"type": "comparison", "items": [
+            {"title": "Żądanie", "text": "Przyjmuje zadanie.", "caption": "Potwierdzenie", "icon": "plus-circle"},
+            {"title": "Worker", "text": "Przetwarza przyjęte zadanie.", "caption": "Praca w tle", "icon": "cpu"}
+          ]},
+          {"type": "note", "text": "Realny artykuł może wskazać modele, o których opowiada. Poniższe odnośniki są poglądowe: demonstracja nie łączy się z żadną usługą, a linki prowadzą do oficjalnych stron."},
+          {"type": "models", "items": [
+            {"model": "GPT", "icon": "brand-openai", "note": "OpenAI", "url": "https://openai.com/"},
+            {"model": "Gemini", "icon": "brand-googlegemini", "note": "Google DeepMind", "url": "https://deepmind.google/models/gemini/"},
+            {"model": "Claude", "icon": "brand-anthropic", "note": "Anthropic", "url": "https://www.anthropic.com/claude"},
+            {"model": "Mistral", "icon": "brand-mistralai", "note": "Mistral AI", "url": "https://mistral.ai/"}
+          ]}
+        ]},
+        {"id": "process", "title": "Dwa krótkie procesy", "blocks": [
+          {"type": "pipeline", "title": "Zadanie w kolejce", "caption": "Schemat poglądowy, nie telemetria.", "flows": {
+            "capture": {"label": "Przyjmij", "steps": [
+              {"title": "Odbierz", "heading": "Odbierz żądanie", "text": "Klient zgłasza zadanie.", "icon": "plugs-connected"},
+              {"title": "Zapisz", "heading": "Zapisz zadanie", "text": "Kolejka przechowuje je do przetworzenia.", "icon": "tray"},
+              {"title": "Potwierdź", "heading": "Potwierdź przyjęcie", "text": "Żądanie może zakończyć się przed przetwarzaniem.", "icon": "check-circle"}
+            ]},
+            "process": {"label": "Przetwórz", "steps": [
+              {"title": "Podejmij", "heading": "Podejmij zadanie", "text": "Worker pobiera zadanie z kolejki.", "icon": "cpu"},
+              {"title": "Zakończ", "heading": "Zapisz zakończenie", "text": "Worker zapisuje wynik.", "icon": "database"}
+            ]}
+          }}
+        ]},
+        {"id": "relations", "title": "Grupowanie i jawne relacje", "blocks": [
+          {"type": "graph", "title": "Mały graf przykładowy", "caption": "Dane poglądowe.", "nodes": [
+            {"id": "service", "title": "Usługa", "text": "Grupuje elementy przykładu.", "x": 330, "y": 150},
+            {"id": "request", "title": "Żądanie", "text": "Zapisuje zadanie.", "x": 120, "y": 65},
+            {"id": "worker", "title": "Worker", "text": "Przetwarza je.", "x": 520, "y": 65},
+            {"id": "result", "title": "Wynik", "text": "Oznacza zakończenie.", "x": 330, "y": 240}
+          ], "edges": [
+            {"from": "service", "to": "request", "kind": "group"},
+            {"from": "request", "to": "worker", "kind": "link"},
+            {"from": "worker", "to": "result", "kind": "link"}
+          ]}
+        ]},
+        {"id": "limits", "title": "Czego ten przykład nie dowodzi", "blocks": [
+          {"type": "faq", "items": [
+            {"question": "Czy to mierzy opóźnienia?", "answer": "Nie. Diagram wyjaśnia proces i nie zawiera benchmarku."},
+            {"question": "Czy strona łączy się z kolejką?", "answer": "Nie. To statyczny artykuł z poglądowymi danymi."}
+          ]}
+        ]}
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "editorial-article-skill",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Development checks for the portable editorial-article skill; generated articles have no npm runtime dependencies.",
+  "scripts": {
+    "test:browser": "node tests/browser.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  }
+}

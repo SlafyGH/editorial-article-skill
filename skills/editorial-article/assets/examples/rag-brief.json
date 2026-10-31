@@ -1,0 +1,746 @@
+{
+ "date": "2026-10-30",
+ "project": "E4B · Baza wiedzy czatu",
+ "ai_role": "drafted",
+ "author": {
+  "name": "Bartosz Majewski"
+ },
+ "languages": {
+  "pl": {
+   "title": "Czat, który wie, kiedy powiedzieć „nie wiem”",
+   "title_lines": [
+    "Czat, który wie,",
+    "kiedy powiedzieć „nie wiem”"
+   ],
+   "subtitle": "Baza wiedzy dla asystenta na stronie E4B. Odpowiada tylko z zatwierdzonych dokumentów, pokazuje źródło, a gdy go nie ma, odmawia.",
+   "category": "Realizacje · RAG",
+   "glossary": {
+    "rag": {
+     "title": "RAG",
+     "text": "Retrieval-augmented generation. Zanim model odpowie, system wyszukuje pasujące fragmenty dokumentów i przekazuje mu tylko je. Model nie odpowiada z własnej pamięci.",
+     "icon": "magnifying-glass"
+    },
+    "embedding": {
+     "title": "Wektor (embedding)",
+     "text": "Lista liczb opisująca znaczenie tekstu. Teksty o podobnym sensie mają podobne wektory, nawet jeśli nie dzielą ani jednego słowa.",
+     "icon": "fingerprint"
+    },
+    "bm25": {
+     "title": "BM25",
+     "text": "Klasyczny ranking wyszukiwarek. Liczy wspólne słowa pytania i dokumentu, z większą wagą dla słów rzadkich.",
+     "icon": "list-magnifying-glass"
+    },
+    "rrf": {
+     "title": "RRF",
+     "text": "Reciprocal Rank Fusion. Łączy kilka rankingów w jeden: dokument dostaje punkty za pozycję na każdej liście, więc wysoko na obu wygrywa.",
+     "icon": "git-merge"
+    },
+    "reranker": {
+     "title": "Reranker",
+     "text": "Mały model, który czyta razem pytanie i każdy znaleziony fragment, a potem ustawia je od nowa. Działa tylko na kandydatach, których nie zmienia.",
+     "icon": "sort-descending"
+    },
+    "pgvector": {
+     "title": "pgvector",
+     "text": "Rozszerzenie bazy PostgreSQL, które przechowuje wektory i szuka najbliższych. Dokumenty, wersje i wektory leżą dzięki temu w jednej bazie.",
+     "icon": "database"
+    },
+    "szkic": {
+     "title": "Szkic",
+     "text": "Dokument, który ktoś napisał, ale nikt jeszcze nie zatwierdził. Czat go nie widzi.",
+     "icon": "file-text"
+    },
+    "fragment": {
+     "title": "Fragment",
+     "text": "Kawałek dokumentu, mniej więcej akapit. Ma doklejony tytuł i streszczenie całości, żeby sam w sobie mówił, czego dotyczy.",
+     "icon": "stack"
+    },
+    "publiczny": {
+     "title": "Konto publiczne",
+     "text": "Osobny użytkownik bazy dla czatu. Ma dostęp do jednego widoku: aktualnych, zatwierdzonych fragmentów. Do szkiców i historii nie ma uprawnień.",
+     "icon": "shield-check"
+    },
+    "e5": {
+     "title": "multilingual-e5-small",
+     "text": "Mały, otwarty model, który zamienia tekst na 384 liczby. Działa lokalnie, bez wysyłania tekstu na zewnątrz, i rozumie polski.",
+     "icon": "cpu"
+    }
+   },
+   "sections": [
+    {
+     "id": "problem",
+     "title": "Płynnie nie znaczy prawdziwie",
+     "toc": "Problem",
+     "blocks": [
+      {
+       "type": "lead",
+       "text": "Model językowy zapytany o firmę odpowie płynnie, nawet jeśli nic o niej nie wie."
+      },
+      {
+       "type": "paragraph",
+       "text": "Zapytany, czy E4B robi recepcjonistkę AI, ile to kosztuje i kiedy będzie gotowe, poda usługę, cenę i termin. Zabrzmi pewnie, a może być wymyślone od początku do końca. Na stronie firmy to gorsze niż brak czatu, bo klient nie ma jak odróżnić faktu od zgadywania."
+      },
+      {
+       "type": "paragraph",
+       "text": "Rozwiązanie nazywa się [term:rag|RAG]. Zanim model cokolwiek powie, program przeszukuje teksty, które napisał i zatwierdził zespół, i daje modelowi tylko to, co znalazł. Model ma odpowiedzieć na tej podstawie i wskazać źródło. Gdy źródła nie ma, odmawia."
+      },
+      {
+       "type": "paragraph",
+       "text": "Ten tekst opisuje taki system zbudowany dla czatu E4B: gdzie leży wiedza, jak trafia do czatu, jak czat jej szuka i co robi, gdy nic nie znajdzie."
+      }
+     ]
+    },
+    {
+     "id": "baza",
+     "title": "Gdzie leży wiedza",
+     "toc": "Gdzie leży wiedza",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Cała wiedza czatu siedzi w jednej bazie: PostgreSQL z rozszerzeniem [term:pgvector|pgvector]. Oryginały, ich historia, fragmenty i wektory leżą obok siebie, więc nie trzeba pilnować kilku systemów naraz."
+      },
+      {
+       "type": "database",
+       "title": "Jedna baza, cztery warstwy",
+       "caption": "Najedź na część bazy, na telefonie dotknij. Podświetlenie pokazuje drogę jednego dokumentu: od opisu, przez zatwierdzenie, do fragmentów z wektorami.",
+       "engine": {
+        "name": "PostgreSQL",
+        "tip": "Popularna, otwarta baza danych. Tutaj trzyma wszystko naraz: dokumenty, ich historię i wektory."
+       },
+       "zones": [
+        {
+         "look": "docs",
+         "label": "Dokumenty",
+         "hit": 3,
+         "items": [
+          "Obsługa poczty",
+          "Łączenie aplikacji i przenoszenie danych",
+          "CRM i zapytania",
+          "Obsługa połączeń głosowych",
+          "Wsparcie obsługi klienta",
+          "Spotkania i terminy",
+          "Obieg dokumentów",
+          "Arkusze i raporty",
+          "Analiza rozmów",
+          "Rozpoznawanie potrzeb sprzedażowych"
+         ],
+         "tip": "Opisy usług pisane przez zespół, np. „Obsługa połączeń głosowych”. To źródło prawdy: wszystko inne da się z nich odtworzyć."
+        },
+        {
+         "look": "versions",
+         "label": "Wersje",
+         "items": [
+          "v1",
+          "v2",
+          "v3 · zatwierdzona"
+         ],
+         "tip": "Każda zmiana to nowa wersja z zapisem, kto ją zatwierdził. Czat widzi tylko ostatnią zatwierdzoną."
+        },
+        {
+         "look": "segments",
+         "label": "Fragmenty",
+         "tip": "Dokument pocięty na kawałki wielkości akapitu. Każdy ma doklejony tytuł i streszczenie, żeby wyjęty z całości dalej mówił, czego dotyczy."
+        },
+        {
+         "look": "vectors",
+         "label": "Wektory",
+         "badge": "pgvector",
+         "tip": "Dla każdego fragmentu 384 liczby opisujące jego znaczenie. Trzyma je pgvector, rozszerzenie PostgreSQL, które szybko znajduje najbliższe."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "droga",
+     "title": "Jak dokument trafia do czatu",
+     "toc": "Droga dokumentu",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Nowy opis zaczyna jako [term:szkic|szkic]. Czat go nie widzi, dopóki konkretna osoba go nie zatwierdzi. Jeśli w międzyczasie ktoś inny zmienił tekst, zatwierdzenie zostaje odrzucone, żeby nikt nie podpisał się pod wersją, której nie czytał."
+      },
+      {
+       "type": "paragraph",
+       "text": "Zatwierdzony dokument system tnie na [term:fragment|fragmenty] i dla każdego liczy [term:embedding|wektor]. Poprawka tworzy nową wersję, a poprzednia od razu znika z wyszukiwania."
+      },
+      {
+       "type": "paragraph",
+       "text": "Czat łączy się z bazą przez [term:publiczny|osobne konto], które widzi tylko aktualne, zatwierdzone fragmenty. Szkiców nie zobaczy nawet przy próbie obejścia. Serwer sprawdza to przy starcie i nie uruchomi się, jeśli konto widzi za dużo."
+      }
+     ]
+    },
+    {
+     "id": "znaczenie",
+     "title": "Szukanie po znaczeniu",
+     "toc": "Szukanie po znaczeniu",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Klient rzadko używa słów z opisu usługi. Pisze „nie odbieramy telefonów po zamknięciu biura”, a opis mówi o „recepcjonistce AI” i „obsłudze po godzinach”. Wyszukiwarka licząca wspólne słowa niewiele tu znajdzie."
+      },
+      {
+       "type": "paragraph",
+       "text": "Dlatego każdy fragment ma [term:embedding|wektor]: 384 liczby policzone przez mały, lokalny model [term:e5|multilingual-e5-small]. Teksty o podobnym sensie dostają podobne liczby, nawet jeśli nie dzielą ani jednego słowa. Pytanie też zamienia się na wektor, a baza szuka najbliższych fragmentów."
+      },
+      {
+       "type": "paragraph",
+       "text": "Obok działa klasyczne [term:bm25|BM25], które pilnuje nazw i skrótów, bo przy nich samo znaczenie bywa za miękkie. [term:rrf|RRF] łączy obie listy w jeden ranking, a [term:reranker|reranker] czyta pytanie razem z każdym kandydatem i ustawia je od nowa."
+      }
+     ]
+    },
+    {
+     "id": "zapytaj",
+     "title": "Zapytaj sam",
+     "toc": "Zapytaj sam",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Czat poniżej ma ten sam kształt co asystent na stronie E4B. Obok widać, co dzieje się w systemie, zanim padnie odpowiedź. Wybierz pytanie albo wpisz własne."
+      },
+      {
+       "type": "askchat",
+       "title": "Asystent E4B",
+       "side_title": "Co się dzieje w środku",
+       "name": "Ebi",
+       "placeholder": "Opisz problem…",
+       "disclosure": "Demo na 10 opisach usług. W przykładach rankingi pochodzą z pomiaru, a odpowiedzi są zapisane na ich podstawie.",
+       "caption": "Pytanie wpisane ręcznie przeszukuje te same 10 opisów w przeglądarce, samymi słowami.",
+       "refuse": "Nie mam potwierdzonych informacji na ten temat. Skontaktuj się z E4B, aby omówić swój przypadek.",
+       "docs": [
+        {
+         "id": "mail-routing",
+         "title": "Obsługa poczty",
+         "text": "Możliwe są sortowanie wiadomości i kierowanie ich do odpowiednich osób, podsumowanie skrzynki oraz przygotowanie szkiców odpowiedzi. Zadania mogą powstawać na podstawie wiadomości i formularzy."
+        },
+        {
+         "id": "system-transfer",
+         "title": "Łączenie aplikacji i przenoszenie danych",
+         "text": "Możliwe są przepisywanie danych między systemami oraz integracja aplikacji przez API i webhooki. Można automatyzować powtarzalne czynności w przeglądarce i pracę w starszych programach bez API."
+        },
+        {
+         "id": "crm",
+         "title": "CRM i zapytania",
+         "text": "Możliwe jest uzupełnianie CRM na podstawie wiadomości, kwalifikowanie zapytań potencjalnych klientów oraz zbieranie wymagań przed wyceną."
+        },
+        {
+         "id": "voice",
+         "title": "Obsługa połączeń głosowych",
+         "text": "Możliwe są AI recepcjonistka odbierająca połączenia, obsługa po godzinach, agent umawiający i przekładający wizyty oraz skierowanie rozmowy do właściwego pracownika."
+        },
+        {
+         "id": "customer-support",
+         "title": "Wsparcie obsługi klienta",
+         "text": "Możliwi są chatbot odpowiadający na pytania o firmę i asystent korzystający z bazy wiedzy. Można przygotowywać odpowiedzi na reklamacje do akceptacji oraz pomagać konsultantom podczas rozmów."
+        },
+        {
+         "id": "meeting",
+         "title": "Spotkania i terminy",
+         "text": "Możliwe są planowanie spotkań i synchronizacja kalendarzy, tworzenie podsumowań spotkań oraz przypomnienia o terminach i zaległych sprawach."
+        },
+        {
+         "id": "documents",
+         "title": "Obieg dokumentów",
+         "text": "Możliwe są obieg dokumentów między działami i automatyzacja zatwierdzania wniosków."
+        },
+        {
+         "id": "spreadsheets",
+         "title": "Arkusze i raporty",
+         "text": "Możliwe są generowanie raportów z arkuszy oraz łączenie arkuszy kalkulacyjnych i baz danych."
+        },
+        {
+         "id": "calls",
+         "title": "Analiza rozmów",
+         "text": "Możliwe są podsumowywanie rozmów telefonicznych, transkrypcja i przeszukiwanie rozmów oraz analiza intencji i tematu zgłoszeń."
+        },
+        {
+         "id": "sales",
+         "title": "Rozpoznawanie potrzeb sprzedażowych",
+         "text": "Możliwe są wyszukiwanie publicznych informacji o firmach, przygotowywanie podsumowań firm przed spotkaniem, dopasowywanie zapytań do oferty i zbieranie wymagań przed wyceną."
+        }
+       ],
+       "examples": [
+        {
+         "q": "Nie odbieramy telefonów po zamknięciu biura. Jakie rozwiązanie możecie zaproponować?",
+         "answer": "Możemy wdrożyć recepcjonistkę AI, która odbiera połączenia także po godzinach, umawia i przekłada wizyty, a sprawę, której sama nie załatwi, przekazuje właściwemu pracownikowi [1].",
+         "check": "Źródło aktualne i zatwierdzone",
+         "refused": false,
+         "sources": [
+          "voice"
+         ],
+         "e5": [
+          "voice",
+          "customer-support",
+          "mail-routing",
+          "documents",
+          "calls"
+         ],
+         "bm25": [
+          "voice"
+         ],
+         "final": [
+          "voice",
+          "mail-routing",
+          "calls",
+          "documents",
+          "sales"
+         ]
+        },
+        {
+         "q": "Czy możecie zrobić czat, który korzysta z firmowych materiałów?",
+         "answer": "Tak. Możemy zbudować chatbota, który odpowiada na pytania o firmę, i asystenta, który korzysta z waszej bazy wiedzy [1].",
+         "check": "Źródło aktualne i zatwierdzone",
+         "refused": false,
+         "sources": [
+          "customer-support"
+         ],
+         "e5": [
+          "customer-support",
+          "documents",
+          "sales",
+          "mail-routing",
+          "crm"
+         ],
+         "bm25": [
+          "spreadsheets",
+          "customer-support"
+         ],
+         "final": [
+          "customer-support",
+          "spreadsheets",
+          "crm",
+          "mail-routing",
+          "sales"
+         ]
+        },
+        {
+         "q": "Czy macie certyfikat ISO 27001?",
+         "answer": "Nie mam potwierdzonych informacji na ten temat. Skontaktuj się z E4B, aby omówić swój przypadek.",
+         "check": "Fragmenty są aktualne, ale żaden nie mówi o certyfikacie",
+         "refused": true,
+         "sources": [],
+         "e5": [
+          "documents",
+          "customer-support",
+          "sales",
+          "system-transfer",
+          "spreadsheets"
+         ],
+         "bm25": [],
+         "final": [
+          "spreadsheets",
+          "sales",
+          "mail-routing",
+          "system-transfer",
+          "meeting"
+         ]
+        }
+       ],
+       "steps": [
+        {
+         "id": "vec",
+         "label": "Pytanie zamienione na wektor",
+         "thinking": "Szukam w bazie…"
+        },
+        {
+         "id": "e5",
+         "label": "Najbliższe znaczeniem",
+         "local": "W przeglądarce liczymy tylko słowa."
+        },
+        {
+         "id": "bm25",
+         "label": "Najbliższe słowami"
+        },
+        {
+         "id": "final",
+         "label": "Złączenie i reranker"
+        },
+        {
+         "id": "check",
+         "label": "Czy źródło jest aktualne",
+         "ok": "Źródło aktualne i zatwierdzone",
+         "none": "Żaden opis nie pasuje"
+        },
+        {
+         "id": "answer",
+         "label": "Odpowiedź",
+         "ok": "Ma numer źródła, numer sprawdzony",
+         "refused": "Bez źródła: stała odmowa zamiast domysłu"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "pomiary",
+     "title": "Jak dobrze szuka",
+     "toc": "Pomiary",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Do sprawdzenia wyszukiwania powstały 24 pytania do 10 opisów usług: 18 ma odpowiedź w jednym z opisów, 6 celowo nie ma. Każda kropka poniżej to jedno z 18 pytań z odpowiedzią."
+      },
+      {
+       "type": "dotmatrix",
+       "title": "Gdzie wylądował właściwy opis",
+       "caption": "Najedź na kropkę, żeby zobaczyć pytanie. Liczba po prawej: trafienia na 1. miejscu, po kropce: w pierwszej piątce. Pomiar z 27.10.2026.",
+       "outcomes": [
+        {
+         "id": "first",
+         "label": "1. miejsce"
+        },
+        {
+         "id": "top",
+         "label": "w pierwszej piątce"
+        },
+        {
+         "id": "miss",
+         "label": "dalej"
+        }
+       ],
+       "items": [
+        "Pracownicy toną w korespondencji. Czy da się przekazywać ją od razu do odpowiedniego działu?",
+        "Czy ktoś może zaproponować roboczą odpowiedź na nasze maile?",
+        "Dane z programu A przepisujemy do programu B. Jak to usprawnić?",
+        "Czy zajmujecie się łączeniem aplikacji, które mają własne API?",
+        "Co zrobić, aby rozmowy z potencjalnymi klientami zasilały nasz CRM?",
+        "Nie odbieramy telefonów po zamknięciu biura. Jakie rozwiązanie możecie zaproponować?",
+        "Chciałbym, żeby automat przekładał terminy przez telefon.",
+        "Czy możecie zrobić czat, który korzysta z firmowych materiałów?",
+        "Czy konsultant może dostać propozycję reakcji na reklamację przed wysłaniem?",
+        "Chciałbym po rozmowie zespołu dostawać najważniejsze ustalenia.",
+        "Można przypominać o sprawach, które mają bliski termin?",
+        "Nasz wniosek musi przejść przez kilka działów. Czy można ten proces usprawnić?",
+        "Chcę cykliczne zestawienie na podstawie arkusza kalkulacyjnego.",
+        "Czy nagrane rozmowy da się zamienić na tekst i przeszukiwać?",
+        "Chcę dowiedzieć się czego potrzebuje klient przed przygotowaniem wyceny.",
+        "Mam stary program bez interfejsu integracyjnego. Czy da się ograniczyć klikanie?",
+        "Czy mogę dostać krótkie podsumowanie firmy przed rozmową handlową?",
+        "Czy da się określić, czego dotyczy zgłoszenie na podstawie rozmowy?"
+       ],
+       "series": [
+        {
+         "label": "Tylko słowa (BM25)",
+         "highlight": false,
+         "values": [
+          "top",
+          "top",
+          "miss",
+          "first",
+          "first",
+          "first",
+          "miss",
+          "top",
+          "first",
+          "miss",
+          "first",
+          "miss",
+          "miss",
+          "miss",
+          "first",
+          "first",
+          "first",
+          "miss"
+         ]
+        },
+        {
+         "label": "Tylko znaczenie (E5)",
+         "highlight": true,
+         "values": [
+          "first",
+          "top",
+          "first",
+          "first",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first"
+         ]
+        },
+        {
+         "label": "Oba po równo",
+         "highlight": false,
+         "values": [
+          "top",
+          "top",
+          "top",
+          "first",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "top",
+          "first",
+          "top",
+          "top",
+          "top",
+          "first",
+          "first",
+          "first",
+          "top"
+         ]
+        },
+        {
+         "label": "Oba, znaczenie ×2",
+         "highlight": false,
+         "values": [
+          "first",
+          "top",
+          "top",
+          "first",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "top",
+          "first",
+          "top",
+          "top",
+          "first",
+          "first",
+          "first",
+          "first",
+          "top"
+         ]
+        },
+        {
+         "label": "Znaczenie + reranker",
+         "highlight": false,
+         "values": [
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "miss",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first"
+         ]
+        },
+        {
+         "label": "Oba + reranker",
+         "highlight": true,
+         "values": [
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "top",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first",
+          "first"
+         ]
+        }
+       ]
+      },
+      {
+       "type": "paragraph",
+       "text": "Szukanie po znaczeniu wygrywa z szukaniem po słowach prawie dwukrotnie: 15 do 8 trafień na pierwszym miejscu. Mieszanie obu metod po równo psuje wynik, a reranker podnosi go do 16 na 18."
+      },
+      {
+       "type": "paragraph",
+       "text": "Sześć pytań bez odpowiedzi, od ceny wdrożenia po ISO 27001, i tak zwróciło coś podobnego. Wyszukiwanie zawsze coś znajdzie, dlatego o odmowie decyduje dalszy krok, a nie sam ranking."
+      },
+      {
+       "type": "note",
+       "text": "Mała próbka, a pytania pisała osoba znająca dokumenty. To wskazówka do ustawienia wag, a nie wynik z ruchu na stronie."
+      },
+      {
+       "type": "models",
+       "items": [
+        {
+         "model": "multilingual-e5-small",
+         "icon": "brand-huggingface",
+         "note": "wektory",
+         "url": "https://huggingface.co/intfloat/multilingual-e5-small"
+        },
+        {
+         "model": "mmarco-mMiniLMv2",
+         "icon": "brand-huggingface",
+         "note": "reranker",
+         "url": "https://huggingface.co/cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "mapa",
+     "title": "Mapa bazy",
+     "toc": "Mapa bazy",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Opisy usług nie są osobnymi wyspami. Połączenia głosowe wiążą się z analizą rozmów, ta z obsługą klienta, a obsługa klienta z pocztą. Tak wygląda ta baza jako sieć."
+      },
+      {
+       "type": "graph",
+       "title": "Mapa bazy",
+       "caption": "Węzły to 10 opisów usług z bazy. Powiązania są przykładowe, dobrane do tego artykułu. Węzły można przeciągać.",
+       "nodes": [
+        {
+         "id": "voice",
+         "title": "Połączenia głosowe",
+         "text": "Recepcjonistka AI, obsługa po godzinach, umawianie i przekładanie wizyt."
+        },
+        {
+         "id": "calls",
+         "title": "Analiza rozmów",
+         "text": "Transkrypcja, przeszukiwanie i podsumowania rozmów telefonicznych."
+        },
+        {
+         "id": "customer-support",
+         "title": "Obsługa klienta",
+         "text": "Chatbot z bazą wiedzy, szkice odpowiedzi na reklamacje."
+        },
+        {
+         "id": "mail-routing",
+         "title": "Poczta",
+         "text": "Sortowanie i kierowanie wiadomości, szkice odpowiedzi."
+        },
+        {
+         "id": "crm",
+         "title": "CRM",
+         "text": "Uzupełnianie CRM, kwalifikowanie zapytań, wymagania przed wyceną."
+        },
+        {
+         "id": "sales",
+         "title": "Sprzedaż",
+         "text": "Podsumowania firm przed spotkaniem, dopasowanie zapytań do oferty."
+        },
+        {
+         "id": "meeting",
+         "title": "Spotkania",
+         "text": "Planowanie, synchronizacja kalendarzy, podsumowania i przypomnienia."
+        },
+        {
+         "id": "documents",
+         "title": "Obieg dokumentów",
+         "text": "Przepływ między działami i zatwierdzanie wniosków."
+        },
+        {
+         "id": "spreadsheets",
+         "title": "Arkusze",
+         "text": "Raporty z arkuszy, łączenie arkuszy i baz danych."
+        },
+        {
+         "id": "system-transfer",
+         "title": "Integracje",
+         "text": "API, webhooki, automatyzacja przeglądarki i starszych programów."
+        }
+       ],
+       "edges": [
+        {
+         "from": "voice",
+         "to": "calls"
+        },
+        {
+         "from": "calls",
+         "to": "customer-support"
+        },
+        {
+         "from": "customer-support",
+         "to": "mail-routing"
+        },
+        {
+         "from": "mail-routing",
+         "to": "crm"
+        },
+        {
+         "from": "crm",
+         "to": "sales"
+        },
+        {
+         "from": "meeting",
+         "to": "voice"
+        },
+        {
+         "from": "documents",
+         "to": "system-transfer"
+        },
+        {
+         "from": "spreadsheets",
+         "to": "system-transfer"
+        },
+        {
+         "from": "crm",
+         "to": "system-transfer"
+        },
+        {
+         "from": "meeting",
+         "to": "calls",
+         "kind": "group"
+        },
+        {
+         "from": "documents",
+         "to": "spreadsheets",
+         "kind": "group"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "faq",
+     "title": "Pytania",
+     "toc": "FAQ",
+     "blocks": [
+      {
+       "type": "faq",
+       "items": [
+        {
+         "question": "Czy czat uczy się z rozmów?",
+         "answer": "Nie. Wie tylko to, co jest w zatwierdzonych dokumentach. Żeby czegoś się nauczył, ktoś z zespołu musi to napisać i zatwierdzić."
+        },
+        {
+         "question": "Czy da się zmienić model albo bazę?",
+         "answer": "Tak, wyszukiwanie, wektory, reranker i model odpowiedzi są oddzielone interfejsami. Zmiana modelu wektorów wymaga przeliczenia wszystkich dokumentów, a zmiana ich długości także migracji bazy."
+        },
+        {
+         "question": "Dokąd trafiają pytania?",
+         "answer": "Do backendu firmy. Jeśli włączony jest zewnętrzny model, dostaje on pytanie i zatwierdzone fragmenty, nic więcej. Klucze dostawców nie trafiają do przeglądarki."
+        },
+        {
+         "question": "Czy to działa tylko dla E4B?",
+         "answer": "Backend nie zależy od treści E4B. Zestaw dokumentów jest wymienny, a reguły zatwierdzania i odmowy zostają te same."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

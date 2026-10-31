@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="How Second Brain saves notes, retrieves context and gives AI agents access to memory through MCP. An interactive article about the project architecture.">
+  <meta name="color-scheme" content="light">
+  <title>Second Brain. Memory beyond the conversation</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23202321'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="preload" as="image" href="../shared/memory.png">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="pl" href="pl.html">
+  <style>
+    @font-face{font-family:Geist;font-style:normal;font-weight:100 900;font-display:swap;src:url("../shared/fonts/geist-latin-ext-wght-normal.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+    @font-face{font-family:Geist;font-style:normal;font-weight:100 900;font-display:swap;src:url("../shared/fonts/geist-latin-wght-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    :root{--paper:#fff;--ink:#202723;--muted:#5e6861;--faint:#f5f7f5;--line:#dfe5df;--accent:#235b47;--tint:#eaf2ec;--ease:cubic-bezier(.2,.65,.3,1);interpolate-size:allow-keywords}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:var(--paper);color:var(--ink);font-family:Geist,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inherit;cursor:pointer}a{color:inherit;text-underline-offset:4px}button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}button:disabled{cursor:default;opacity:.45}::selection{background:#cde4d9}.skip{position:fixed;top:10px;left:10px;z-index:10;background:var(--paper);padding:12px;transform:translateY(-180%)}.skip:focus{transform:none}.icon{width:20px;height:20px;object-fit:contain;flex-shrink:0;vertical-align:middle}
+    .sheet{width:100%;margin:0;border-radius:0}
+    .progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:7;pointer-events:none;background:var(--line)}.progress span{display:block;width:100%;height:100%;background:linear-gradient(90deg,#9ec8b7,#3f7c64);transform:scaleX(0);transform-origin:0 0}
+    .hero{width:calc(100% - 80px);max-width:970px;margin:0 auto;padding-top:44px}.hero-head{display:block;text-align:center;margin-bottom:34px}.eyebrow{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin:0 0 20px}h1{font-weight:430;font-size:clamp(38px,4.4vw,60px);line-height:1.12;letter-spacing:-.035em;max-width:880px;margin:0 auto 22px;text-wrap:balance}.dek{font-size:16px;line-height:1.7;color:var(--muted);max-width:570px;margin:0 auto}.metadata{display:flex;justify-content:center;gap:44px;margin:30px 0 0;font-size:11px;color:var(--muted)}.metadata div{display:grid;gap:6px}.metadata dt{font-size:9px;text-transform:uppercase;letter-spacing:1px}.metadata .byline dt{text-transform:none;letter-spacing:0;font-size:11px}.metadata dd{margin:0;color:var(--ink)}.cover{margin:0;overflow:hidden;border-radius:24px;aspect-ratio:2.15;background:#92b9be}.cover img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 48%}.cover-caption{color:var(--muted);font-size:11px;line-height:1.6;margin:13px 0 0;display:flex;justify-content:space-between;gap:20px}.cover-caption span:last-child{white-space:nowrap}
+    .reading-layout{display:grid;grid-template-columns:150px minmax(0,720px);gap:54px;width:calc(100% - 80px);max-width:970px;margin:68px auto 0;align-items:start}.sidebar{position:sticky;top:32px;padding-top:5px}.sidebar-title{font-size:12px;font-weight:550;margin:0 0 21px}.toc{display:grid;gap:15px;border-left:1px solid var(--line)}.toc a{position:relative;text-decoration:none;font-size:12px;color:var(--muted);line-height:1.5;padding-left:17px;transition:color 150ms}.toc a.active{color:var(--accent);font-weight:550}.toc a.active::before{content:"";position:absolute;width:2px;left:-1px;top:0;bottom:0;background:var(--accent)}.toc a:hover{color:var(--ink)}
+    .article{min-width:0}section{scroll-margin-top:30px;margin:0 0 78px}h2{font-size:30px;font-weight:480;line-height:1.2;letter-spacing:-.025em;margin:0 0 23px;text-wrap:balance}h3{font-size:19px;font-weight:550;line-height:1.35;letter-spacing:-.015em;margin:28px 0 12px}p{font-size:16px;line-height:1.8;margin:0 0 20px;color:#465149}.lead{font-size:20px;line-height:1.6;color:var(--ink)}strong{font-weight:580;color:var(--ink)}code{font-family:Consolas,"SFMono-Regular",monospace;font-size:.84em;color:var(--ink);background:var(--faint);border-radius:3px;padding:2px 5px;overflow-wrap:anywhere}.term{display:inline-flex;align-items:center;gap:4px;border:0;border-bottom:1px dotted #8aa594;padding:0 3px;background:var(--tint);color:var(--accent);border-radius:3px;line-height:1.4;cursor:help;vertical-align:baseline;transition:background 150ms}.term .icon{width:14px;height:14px;opacity:.75}.term:hover,.term[aria-expanded="true"]{background:#d5e7dc}.note{font-size:12px;color:var(--muted);line-height:1.75}.note a:hover{color:var(--accent)}.key-point{display:grid;grid-template-columns:22px 1fr;gap:12px;background:var(--tint);padding:18px 20px;border-radius:5px;margin:26px 0}.key-point p{font-size:14px;line-height:1.65;margin:0;color:var(--accent)}.key-point .icon{margin-top:2px}.scan-list{list-style:none;padding:0;margin:24px 0;display:grid;gap:0}.scan-list li{display:grid;grid-template-columns:140px 1fr;gap:18px;border-top:1px solid var(--line);padding:13px 0;font-size:14px;line-height:1.6}.scan-list li:last-child{border-bottom:1px solid var(--line)}.scan-list b{font-weight:550}.scan-list span{color:var(--muted)}
+    .layers{margin:28px 0 24px;border-top:1px solid var(--line)}.layer{display:grid;grid-template-columns:28px 170px 1fr;align-items:start;gap:18px;border-bottom:1px solid var(--line);padding:19px 0}.layer>.icon{width:24px;height:24px;margin-top:3px}.layer small{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}.layer b{font-size:15px;font-weight:550;display:block}.layer p{font-size:13px;line-height:1.7;margin:0}.layer:hover b{color:var(--accent)}
+    .wide-figure{margin:30px -40px 26px;width:calc(100% + 80px);background:var(--faint);border:1px solid var(--line);border-radius:18px;padding:25px 28px}.figure-top{display:flex;align-items:center;justify-content:space-between;gap:20px}.figure-label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:550}.figure-label .icon{width:18px;height:18px}.tabs{display:flex;border:1px solid var(--line);padding:3px;border-radius:99px;background:var(--paper);gap:3px}.tabs button{border:0;border-radius:99px;padding:8px 16px;font-size:12px;background:none;transition:background 150ms,color 150ms}.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}.diagram-caption{font-size:11px;line-height:1.7;color:var(--muted);margin-top:17px}.rail{display:flex;list-style:none;padding:0;margin:31px 0 25px;isolation:isolate}.rail li{flex:1;position:relative;min-width:0}.rail li:not(:last-child)::after{content:"";position:absolute;height:1px;background:#c9d3cb;width:100%;left:50%;top:26px;z-index:-1;transition:background 160ms}.rail li.done:not(:last-child)::after{background:var(--accent)}.step{width:100%;border:0;background:none;padding:0 3px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px}.step .disc{width:52px;height:52px;display:grid;place-items:center;border:1px solid #c9d3cb;border-radius:50%;background:var(--faint);transition:transform 150ms,background 150ms,border-color 150ms}.disc .icon{width:23px;height:23px;transition:filter 150ms}.step:hover .disc{transform:translateY(-1px);border-color:var(--accent)}.step.selected .disc{background:var(--ink);border-color:var(--ink)}.step.selected .disc .icon{filter:invert(1)}.rail li.done .disc{border-color:#9fbda9;background:var(--tint)}.step b{font-size:12px;font-weight:550;line-height:1.35}.step small{font:10px Consolas,monospace;color:var(--muted);line-height:1.5}.step-explainer{min-height:157px;border-top:1px solid var(--line);padding:21px 0 0}.step-explainer h3{font-size:18px;margin:0 0 8px}.step-explainer p{font-size:13px;line-height:1.75;margin:0}.figure-controls{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:12px}.control{display:inline-flex;align-items:center;gap:7px;border:1px solid #cbd5ce;border-radius:99px;padding:9px 14px;font-size:12px;background:var(--paper);transition:background 150ms}.control .icon{width:15px;height:15px}.control:hover{background:var(--tint)}.control.primary{background:var(--ink);color:white;border-color:var(--ink)}.control.primary .icon{filter:invert(1)}.control.primary:hover{background:#354b3e}.control-group{display:flex;gap:8px}.step-count{font:11px Consolas,monospace;color:var(--muted)}
+    .example{border-left:2px solid #a6baac;padding:2px 0 2px 19px;margin:25px 0}.example .label{font-size:11px;color:var(--muted);margin-bottom:10px}.example p{font-size:14px;margin-bottom:8px}.example p:last-child{margin-bottom:0}.search-compare{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:27px 0}.search-track{padding:21px 22px}.search-track+ .search-track{background:var(--faint);border-left:1px solid var(--line)}.search-track h3{display:flex;gap:9px;align-items:center;font-size:15px;margin:0 0 10px}.search-track p{font-size:13px;line-height:1.7;margin:0}.search-track small{display:block;font:11px Consolas,monospace;color:var(--accent);margin-top:12px}
+    .graph-figure{padding-bottom:20px}.graph-legend{display:flex;gap:15px;flex-wrap:wrap}.graph-legend button{display:flex;gap:5px;align-items:center;background:none;border:0;border-bottom:1px solid transparent;padding:4px 0;font-size:11px;color:var(--muted)}.graph-legend .icon{width:14px;height:14px}.graph-legend button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}.graph-view{position:relative;margin-top:14px;aspect-ratio:2.2}.graph-view svg{width:100%;height:100%;display:block;overflow:visible}.graph-edge{stroke:#b9c7bd;stroke-width:1;transition:opacity 160ms,stroke 160ms}.graph-edge.link{stroke:var(--accent);stroke-width:1.5}.graph-node{cursor:pointer;outline:none}.graph-node circle{fill:var(--paper);stroke:#8da494;stroke-width:1;transition:fill 150ms,stroke 150ms}.graph-node text{font:13px Geist,sans-serif;fill:var(--ink);pointer-events:none}.graph-node:hover circle,.graph-node:focus-visible circle{fill:var(--tint);stroke:var(--accent);stroke-width:2}.graph-node.selected circle{fill:var(--accent);stroke:var(--accent)}.graph-node.selected text{font-weight:600}.graph-node.folder circle{fill:var(--tint)}.graph-node.folder.selected circle{fill:var(--accent)}.graph-detail{border-top:1px solid var(--line);padding-top:16px;min-height:90px}.graph-detail b{font-size:14px;font-weight:550}.graph-detail p{font-size:13px;line-height:1.7;margin:5px 0 0}
+    .lifecycle{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:25px 0 14px}.state{display:inline-flex;align-items:center;gap:7px;font:12px Consolas,monospace;padding:11px 13px;background:var(--faint);border:1px solid var(--line);border-radius:6px}.state .icon{width:17px;height:17px}.state.proposed{background:var(--tint);border-color:#b7ccbe;color:var(--accent)}.state-arrow{width:16px;height:16px;opacity:.6}.lifecycle-caption{font-size:12px;line-height:1.7;color:var(--muted)}.facts{margin:28px 0 0}.facts details{border-top:1px solid var(--line);padding:19px 0}.facts details:last-child{border-bottom:1px solid var(--line)}summary{cursor:pointer;font-size:15px;list-style:none;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:16px}summary::-webkit-details-marker{display:none}summary .icon{width:17px;height:17px;transition:transform 150ms}details[open] summary .icon{transform:rotate(180deg)}details p{font-size:14px;margin:14px 30px 0 0;line-height:1.8}
+    details::details-content{block-size:0;overflow-y:clip;transition:block-size 250ms var(--ease),content-visibility 250ms allow-discrete}details[open]::details-content{block-size:auto}
+    .footer{width:calc(100% - 80px);max-width:970px;margin:0 auto;padding:28px 0 35px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:20px;color:var(--muted);font-size:11px}.footer a{display:flex;align-items:center;gap:6px;text-decoration:none}.footer a:hover{color:var(--ink)}
+    .tooltip{position:fixed;z-index:5;width:290px;max-width:calc(100vw - 28px);padding:15px 17px;background:var(--ink);color:#f6f8f6;border-radius:8px;box-shadow:0 5px 15px #15251d15;pointer-events:none;font-size:12px;line-height:1.7;opacity:0;transform:translateY(2px);transition:opacity 120ms,transform 120ms}.tooltip.visible{opacity:1;transform:none}.tooltip b{display:block;font-size:13px;font-weight:550;margin-bottom:5px}
+    @media(prefers-reduced-motion:no-preference){.reveal{transition:opacity 150ms var(--ease),transform 150ms var(--ease)}.reveal.pending{opacity:.97;transform:translateY(2px)}}
+    @media(max-width:1100px){h1{font-size:54px}.reading-layout{grid-template-columns:130px minmax(0,1fr);gap:36px}.wide-figure{width:100%;margin-left:0;margin-right:0;padding:23px}.layer{grid-template-columns:24px 145px 1fr;gap:14px}.step small{font-size:9px}}
+    @media(max-width:767px){.hero,.reading-layout,.footer{width:calc(100% - 40px)}.hero{padding-top:28px}.hero-head{margin-bottom:27px}.eyebrow{font-size:9px;margin-bottom:18px}h1{font-size:38px;line-height:1.14;max-width:540px;margin-bottom:18px}.hero-break{display:none}.dek{font-size:14px;max-width:460px}.metadata{display:grid;grid-template-columns:1fr 1fr;gap:17px 12px;margin:25px 0 0;font-size:10px}.metadata dt{font-size:8px}.cover{aspect-ratio:1.6;border-radius:18px}.cover img{object-position:51% center}.cover-caption{font-size:10px}.cover-caption span:last-child{display:none}.reading-layout{display:block;margin-top:35px}.sidebar{position:static;padding:0;margin-bottom:32px}.sidebar-title{display:none}.toc{display:flex;overflow-x:auto;gap:20px;padding:0 0 12px;border-left:0;border-bottom:1px solid var(--line)}.toc a{white-space:nowrap;font-size:11px;padding-left:0}.toc a.active::before{display:none}.article{width:100%}section{margin-bottom:53px}h2{font-size:27px;line-height:1.22;margin-bottom:19px}.lead{font-size:18px}p{font-size:15px;line-height:1.8}.scan-list li{grid-template-columns:105px 1fr;gap:14px;font-size:13px}.key-point{padding:16px;gap:10px}.key-point p{font-size:13px}.layer{grid-template-columns:24px 1fr;gap:5px 12px;padding:17px 0}.layer>.icon{grid-row:span 2}.layer p{grid-column:2;font-size:12px}.layer b{font-size:15px}.layer small{font-size:10px}.wide-figure{padding:19px 16px;border-radius:16px}.figure-top{gap:10px}.figure-label{font-size:12px}.figure-label .icon{width:16px;height:16px}.tabs button{font-size:11px;padding:7px 12px}.rail{display:grid;grid-template-columns:1fr 1fr;gap:19px 12px;margin:25px 0}.rail li:not(:last-child)::after{display:none}.step{display:grid;grid-template-columns:41px 1fr;gap:3px 9px;text-align:left;align-items:center}.step .disc{width:41px;height:41px;grid-row:span 2}.disc .icon{width:20px;height:20px}.step b{font-size:11px}.step small{font-size:9px}.step-explainer{min-height:186px;padding-top:18px}.step-explainer p{font-size:12px}.step-explainer h3{font-size:17px}.step-count{font-size:10px}.control{padding:8px 11px;font-size:11px;gap:5px}.control .icon{width:13px;height:13px}.control-group{gap:6px}.search-compare{grid-template-columns:1fr}.search-track{padding:18px}.search-track+ .search-track{border-left:0;border-top:1px solid var(--line)}.graph-figure .figure-top{display:block}.graph-legend{margin-top:13px;gap:13px}.graph-view{aspect-ratio:1.7;margin:18px -7px 12px}.graph-node text{font-size:22px}.graph-detail{min-height:123px}.graph-detail p{font-size:12px}.lifecycle{gap:6px}.state{padding:9px 10px;font-size:11px;gap:5px}.state .icon{width:14px;height:14px}.state-arrow{width:12px;height:12px}.footer{padding:25px 0;align-items:flex-start;flex-direction:column;gap:12px}summary{font-size:14px}details p{font-size:13px;margin-right:0}}
+    @media(max-width:380px){.hero,.reading-layout,.footer{width:calc(100% - 32px)}h1{font-size:34px}.metadata{gap:17px}.state{padding:8px}.lifecycle{gap:5px}.graph-legend{gap:10px}.control{padding:8px}.figure-label{font-size:11px}.figure-label .icon{display:none}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.reveal.pending{opacity:1;transform:none}}
+    @media print{.sidebar,.figure-controls,.tooltip,.author-card,.hero,.reading-layout,.footer,.hero{padding-top:25px}.reading-layout{display:block;max-width:750px}.cover{max-height:250px}.reveal.pending{opacity:1;transform:none}.wide-figure{width:100%;margin-left:0;margin-right:0;break-inside:avoid}section{margin-bottom:28px}.article a{text-decoration:none}.footer{padding:15px 0}details:not([open])>p{display:block}.progress{display:none}details::details-content{block-size:auto;transition:none}}
+    .control .icon,.term .icon,.graph-legend .icon,.author-links .icon{transition:transform 160ms cubic-bezier(.16,1,.3,1)}
+    .control:hover .icon,.control:focus-visible .icon{transform:translateX(2px)}.control.primary:hover .icon{transform:scale(1.08)}.term:hover .icon{transform:translateY(-1px)}.graph-legend button:hover .icon{transform:rotate(-7deg)}.author-links a:hover .icon,.author-links a:focus-visible .icon{transform:rotate(-6deg) scale(1.06)}
+    .connection-list{margin:26px 0 30px;border-top:1px solid var(--line)}.connection-list>div{display:grid;grid-template-columns:170px 1fr;gap:24px;padding:18px 0;border-bottom:1px solid var(--line)}.connection-list dt{font-size:14px;font-weight:550;line-height:1.6}.connection-list dd{margin:0;font-size:14px;line-height:1.75;color:var(--muted)}
+    .author-button{border:0;background:none;padding:0;color:var(--ink);font-size:inherit;line-height:inherit;text-decoration:underline;text-decoration-color:#b4c6ba;text-underline-offset:4px}.author-button:hover{color:var(--accent);text-decoration-color:var(--accent)}.author-card{position:fixed;z-index:8;width:272px;max-width:calc(100vw - 28px);padding:19px;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #18291f12}.author-card h2{font-size:17px;margin:0 0 6px;letter-spacing:-.015em}.author-card p{font-size:12px;line-height:1.6;margin:0;color:var(--muted)}.author-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.author-links:empty{display:none}.author-links a{display:grid;place-items:center;width:44px;height:44px;padding:9px;border-radius:6px;text-decoration:none;font-size:13px}.author-links a:hover,.author-links a:focus-visible{background:var(--tint)}.author-links .icon{width:24px;height:24px}
+    @media(max-width:767px){.connection-list>div{grid-template-columns:1fr;gap:6px;padding:17px 0}.connection-list dt{font-size:14px}.connection-list dd{font-size:13px}.author-button{min-height:32px}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#article">Skip to the article</a>
+<div class="progress" aria-hidden="true"><span></span></div>
+<div class="sheet" id="top">
+  <main>
+    <div class="hero">
+      <div class="hero-head">
+        <div><p class="eyebrow">Memory architecture</p>
+          <h1>Second Brain: memory<br class="hero-break"> beyond the conversation</h1>
+          <p class="dek">A shared place for notes, decisions and project context.<br class="hero-break"> How agents save and retrieve information through MCP.</p>
+        </div>
+        <dl class="metadata"><div><dt>Published</dt><dd><time datetime="2026-10-10">October 10, 2026</time></dd></div><div class="byline"><dt>Written by:</dt><dd><button class="author-button" id="author-button" type="button" aria-controls="author-card" aria-expanded="false" aria-haspopup="dialog">Kacper</button></dd></div><div><dt>Project</dt><dd>Second Brain</dd></div><div><dt>Reading time</dt><dd id="reading-time">7 min</dd></div></dl>
+      </div>
+      <figure class="cover"><img src="../shared/memory.png" width="1774" height="887" alt="A brain made from thin layers of paper and note cards connected by fine threads. A generated illustration of shared memory." fetchpriority="high"></figure>
+      <div class="cover-caption"><span>Notes and the connections between them. A project illustration.</span><span>Generated image</span></div>
+    </div>
+    <div class="reading-layout">
+      <aside class="sidebar" aria-label="Table of contents"><p class="sidebar-title">In this article</p><nav class="toc"><a href="#pomysl" class="active">Why shared memory</a><a href="#warstwy">What is inside</a><a href="#zapis">From note to index</a><a href="#odczyt">Retrieving context</a><a href="#graf">Reading the graph</a><a href="#zaufanie">Memory and trust</a><a href="#polaczenie">Connection and deployment</a><a href="#praktyka">How it runs today</a></nav></aside>
+      <article class="article" id="article">
+        <section id="pomysl" class="reveal">
+          <h2>One memory for several agents</h2>
+          <p class="lead">We separated project memory from individual chat histories, so different agents can retrieve the same notes and check their sources.</p>
+          <p>A project decision, an updated specification or a test result may be needed in several tools. Brain makes a shared collection of notes available through <button class="term" data-term="mcp" type="button">MCP</button>. The client saves selected information and retrieves relevant context for the next task.</p>
+          <ul class="scan-list" aria-label="Core operations">
+            <li><b>Save</b><span><code>brain_push</code> accepts a note and queues it for processing.</span></li>
+            <li><b>Find</b><span><code>brain_pull</code> searches for passages related to a question.</span></li>
+            <li><b>Check</b><span><code>brain_open</code> opens the full document referenced in a result.</span></li>
+          </ul>
+          <div class="key-point"><img class="icon" src="../shared/icons/plugs-connected.svg" width="20" height="20" alt="" aria-hidden="true"><p>The client decides what to save and when to retrieve memory. The server does not automatically capture every conversation or data from every application.</p></div>
+          <p>When saving a decision, include the reasoning behind it. A note saying "we chose SQLite" records the outcome. Adding the RAM constraint and deployment setup lets another agent check whether that choice still fits the project.</p>
+        </section>
+        <section id="warstwy" class="reveal">
+          <h2>What the system stores</h2>
+          <p>The source of truth is a collection of ordinary <button class="term" data-term="markdown" type="button">Markdown</button> files. You can open them in an editor, browse them in Obsidian or move them to another computer. <button class="term" data-term="sqlite" type="button">SQLite</button> stores the search index and the current processing state.</p>
+          <div class="layers" aria-label="System layers">
+            <div class="layer"><img class="icon" src="../shared/icons/file-text.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Source content</small><b>Note vault</b></div><p>Content, titles, metadata, facts and references in <code>.md</code>.</p></div>
+            <div class="layer"><img class="icon" src="../shared/icons/database.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Index and operational state</small><b>SQLite and vectors</b></div><p>Document passages, words in <button class="term" data-term="fts5" type="button">FTS5</button> and vectors in <button class="term" data-term="sqlite_vec" type="button">sqlite-vec</button>.</p></div>
+            <div class="layer"><img class="icon" src="../shared/icons/plugs-connected.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Client access</small><b>MCP server</b></div><p>Tools for reading, writing and editing memory. Permissions follow the client role and policy.</p></div>
+            <div class="layer"><img class="icon" src="../shared/icons/cpu.svg" width="20" height="20" alt="" aria-hidden="true"><div><small>Processing</small><b>Worker and models</b></div><p>Sorting notes, computing embeddings, ranking results and preparing answers.</p></div>
+          </div>
+          <p>The document index can be rebuilt from the vault. Queue history, approvals and audit records are different: they live in the database. A copy of the Markdown files and a full SQLite backup protect different parts of the system.</p>
+          <p class="note">Here, "vault" means the notes directory. It is not a separate service, and using Obsidian is optional.</p>
+        </section>
+        <section id="zapis" class="reveal">
+          <h2>How a note enters memory</h2>
+          <p>The agent calls <code>brain_push</code>. The server validates the content, writes the note to the inbox and adds it to the queue. Accepting a note does not require the model to respond. More expensive processing is handled later by a background <button class="term" data-term="worker" type="button">worker</button>.</p>
+          <figure class="wide-figure" id="pipeline" aria-labelledby="pipeline-title">
+            <div class="figure-top"><span class="figure-label" id="pipeline-title"><img class="icon" src="../shared/icons/git-branch.svg" width="20" height="20" alt="" aria-hidden="true">The information flow</span><div class="tabs" role="tablist" aria-label="Choose a process"><button role="tab" aria-selected="true" aria-controls="pipeline-panel" id="tab-write" data-flow="write" type="button">Write</button><button role="tab" aria-selected="false" aria-controls="pipeline-panel" id="tab-read" data-flow="read" tabindex="-1" type="button">Read</button></div></div>
+            <div id="pipeline-panel" role="tabpanel" aria-labelledby="tab-write"><ol class="rail" id="step-rail" aria-label="Process steps"></ol><div class="step-explainer" id="step-explainer" aria-live="polite" aria-atomic="true"></div></div>
+            <div class="figure-controls"><span class="step-count" id="step-count"></span><div class="control-group"><button class="control" id="next-step" type="button">Next <img class="icon" src="../shared/icons/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"></button><button class="control primary" id="play-flow" type="button"><img class="icon" src="../shared/icons/play.svg" width="20" height="20" alt="" aria-hidden="true"><span>Play</span></button></div></div>
+            <figcaption class="diagram-caption">Select a step or play the sequence. This is an explanation of the process, not a connection to private memory.</figcaption>
+            <noscript><p>Write: agent → brain_push → INBOX and queue → chunks and embeddings → sorting → index. Read: question → FTS5 and vectors → RRF → reranker → passages with sources → answer.</p></noscript>
+          </figure>
+          <p>The worker splits the text into <button class="term" data-term="chunk" type="button">chunks</button>, computes embeddings and asks the model to suggest a folder, tags and facts. It then updates the file and its index. Each record has an identifier, source and metadata. <button class="term" data-term="idempotency" type="button">Idempotency</button> allows a request to be retried with the same <code>request_id</code> without creating another note.</p>
+          <p>A failure partway through processing should not erase accepted content. The recovery mechanism finds files whose index needs updating. The queue also uses a time-limited lease so an old worker cannot finish a job that another worker has already claimed.</p>
+        </section>
+        <section id="odczyt" class="reveal">
+          <h2>How Brain finds relevant context</h2>
+          <p>A note says "we chose a local setup because of RAM constraints." A week later, you ask "why did we not use a separate database?" Matching words alone may not be enough. That is why <code>brain_pull</code> uses two search paths.</p>
+          <div class="example"><div class="label">Illustrative example</div><p><strong>Note:</strong> "We are staying with SQLite to avoid maintaining another service on a machine with limited RAM."</p><p><strong>Question:</strong> "Why did we reject a separate data server?"</p></div>
+          <div class="search-compare" aria-label="Two search paths">
+            <div class="search-track"><h3><img class="icon" src="../shared/icons/list-magnifying-glass.svg" width="20" height="20" alt="" aria-hidden="true">Matching words</h3><p>FTS5 searches the document text. It helps find names, terms and specific phrases.</p><small>SQLite / FTS5</small></div>
+            <div class="search-track"><h3><img class="icon" src="../shared/icons/stack.svg" width="20" height="20" alt="" aria-hidden="true">Matching meaning</h3><p>Vectors help retrieve similar content even when the question uses different words.</p><small>embedding / sqlite-vec</small></div>
+          </div>
+          <p><button class="term" data-term="fts5" type="button">FTS5</button> finds words and phrases. <button class="term" data-term="embedding" type="button">Embedding</button> turns text into a vector so search can compare the meaning of the question and stored passages. The <button class="term" data-term="rrf" type="button">RRF</button> algorithm merges both lists. A <button class="term" data-term="reranker" type="button">reranker</button> then scores the selected candidates against the question again.</p>
+          <p>A result includes a passage, the document path, status and trust information. If a match is weak, the server can mark it as <code>low_confidence</code>. This also tells the agent not to treat that material as a firm basis for an answer.</p>
+          <p>This is where <button class="term" data-term="rag" type="button">RAG</button> comes in: the model answers using retrieved context. <code>brain_pull</code> returns results that the client model can use, while <code>brain_answer</code> also provides an answer-generation path inside Brain. Sources remain available for checking.</p>
+          <p class="note">Choose "Read" in the diagram above to follow the retrieval sequence. The examples are illustrative and do not come from the private vault.</p>
+        </section>
+        <section id="graf" class="reveal">
+          <h2>What graph connections mean</h2>
+          <p>Search results answer a specific question. The graph helps you explore a project: documents in the same folder, explicit links between notes or similar content. In the Brain panel, selecting a node opens its document.</p>
+          <figure class="wide-figure graph-figure" aria-labelledby="graph-title">
+            <div class="figure-top"><span class="figure-label" id="graph-title"><img class="icon" src="../shared/icons/tree-structure.svg" width="20" height="20" alt="" aria-hidden="true">The note graph</span><div class="graph-legend" aria-label="Connection types"><button data-edge="all" aria-pressed="true" type="button">All</button><button data-edge="link" aria-pressed="false" type="button"><img class="icon" src="../shared/icons/link.svg" width="20" height="20" alt="" aria-hidden="true">Links</button><button data-edge="folder" aria-pressed="false" type="button"><img class="icon" src="../shared/icons/folder.svg" width="20" height="20" alt="" aria-hidden="true">Folder</button></div></div>
+            <div class="graph-view"><svg viewBox="0 0 660 300" role="group" aria-label="Sample note graph. Select a node to read its explanation.">
+              <g id="graph-edges"><line class="graph-edge folder" x1="330" y1="150" x2="118" y2="66"/><line class="graph-edge folder" x1="330" y1="150" x2="160" y2="238"/><line class="graph-edge folder" x1="330" y1="150" x2="494" y2="60"/><line class="graph-edge folder" x1="330" y1="150" x2="540" y2="223"/><line class="graph-edge folder" x1="330" y1="150" x2="335" y2="269"/><line class="graph-edge link" x1="118" y1="66" x2="160" y2="238"/><line class="graph-edge link" x1="118" y1="66" x2="494" y2="60"/><line class="graph-edge link" x1="494" y1="60" x2="540" y2="223"/></g>
+              <g class="graph-node folder selected" data-node="project" tabindex="0" role="button" aria-label="Select the Project folder" aria-pressed="true"><circle cx="330" cy="150" r="16"/><text x="330" y="184" text-anchor="middle">Project</text></g>
+              <g class="graph-node" data-node="decision" tabindex="0" role="button" aria-label="Select decision.md" aria-pressed="false"><circle cx="118" cy="66" r="9"/><text x="118" y="94" text-anchor="middle">decision.md</text></g>
+              <g class="graph-node" data-node="spec" tabindex="0" role="button" aria-label="Select specification.md" aria-pressed="false"><circle cx="160" cy="238" r="9"/><text x="160" y="268" text-anchor="middle">specification.md</text></g>
+              <g class="graph-node" data-node="test" tabindex="0" role="button" aria-label="Select tests.md" aria-pressed="false"><circle cx="494" cy="60" r="9"/><text x="494" y="89" text-anchor="middle">tests.md</text></g>
+              <g class="graph-node" data-node="deploy" tabindex="0" role="button" aria-label="Select deployment.md" aria-pressed="false"><circle cx="540" cy="223" r="9"/><text x="540" y="252" text-anchor="middle">deployment.md</text></g>
+              <g class="graph-node" data-node="ideas" tabindex="0" role="button" aria-label="Select ideas.md" aria-pressed="false"><circle cx="335" cy="269" r="7"/><text x="335" y="297" text-anchor="middle">ideas.md</text></g>
+            </svg></div>
+            <div class="graph-detail" id="graph-detail" aria-live="polite" aria-atomic="true"><b>Project</b><p>A grouping node. Folder edges show where documents live; green edges show explicit references between notes.</p></div>
+            <figcaption class="diagram-caption">Sample data. Select a node and filter the connection type. This diagram shows two kinds of relationship available in the panel.</figcaption>
+          </figure>
+          <p>Read the edges carefully. Sharing a folder is an organizational relationship; vector similarity means related text. Neither one proves causation. Current search retrieves document passages. Displaying a graph does not automatically turn it into <button class="term" data-term="graphrag" type="button">GraphRAG</button>.</p>
+        </section>
+        <section id="zaufanie" class="reveal">
+          <h2>Fact status and access boundaries</h2>
+          <p>A model can extract a useful fact from a note. It can also misinterpret the text. Records therefore carry a status and source, rather than treating all information equally.</p>
+          <div class="lifecycle" aria-label="An illustrative path from capture to confirmation"><span class="state"><img class="icon" src="../shared/icons/tray.svg" width="20" height="20" alt="" aria-hidden="true">captured</span><img class="state-arrow" src="../shared/icons/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"><span class="state proposed"><img class="icon" src="../shared/icons/brain.svg" width="20" height="20" alt="" aria-hidden="true">proposed</span><img class="state-arrow" src="../shared/icons/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"><span class="state"><img class="icon" src="../shared/icons/check-circle.svg" width="20" height="20" alt="" aria-hidden="true">confirmed</span></div>
+          <p class="lifecycle-caption">A saved note, a proposed fact and a confirmed fact. Notes and facts have their own statuses; not every record goes through every stage.</p>
+          <p>The worker marks model-generated conclusions as <code>proposed</code>. An authorized person can confirm or correct a fact. The current code also has a nightly <code>dream</code>process: it organizes memory and can promote a recurring fact when it appears in at least two sources and is not marked as contradictory. This checks consistency between records. A mistake repeated twice can still be a mistake.</p>
+          <p>Access and approvals are separate decisions. A role determines which memory tools a client can use; policy decides which actions need approval. The HUMAN role provides administrative operations, so its credentials need particular care.</p>
+          <p>Note content is material to read. A document saying "ignore earlier rules" does not become an instruction to the agent. Separating data from instructions is part of this project’s MCP contract.</p>
+        </section>
+        <section id="polaczenie" class="reveal">
+          <h2>Ways to connect to Brain</h2>
+          <p>We kept MCP as the common interface. The transport can change depending on where the client and server run, while the tools for saving and retrieving memory stay the same.</p>
+          <dl class="connection-list">
+            <div><dt>Local process / stdio</dt><dd>The client starts Brain on the same computer and communicates through the process’s input and output streams. Access follows the operating-system account running it.</dd></div>
+            <div><dt>Local or remote HTTP</dt><dd>A client connects using Streamable HTTP. This can be a service on the same computer or a server on another machine. Remote access needs an encrypted connection and authentication.</dd></div>
+            <div><dt>A custom application</dt><dd>An application can use an MCP client SDK or an adapter that calls the same tools. A separate REST API would be another interface to build, not an existing part of this setup.</dd></div>
+            <div><dt>Reading the files</dt><dd>Markdown notes remain readable in an editor without an MCP client. This gives access to the files, not to the server’s retrieval, queue or approval tools.</dd></div>
+          </dl>
+          <h3>On one computer or on a VM</h3>
+          <p>A local setup keeps the server, notes and index on your computer. Models can run locally if the machine has enough resources, or use a configured external service. Keeping the files local does not automatically make every operation offline.</p>
+          <p>Our setup puts the Brain service on a virtual machine. Several clients can use that shared memory without moving the vault between computers. Models can run on the VM or on another machine. A VM changes where the service runs; it does not provide access control by itself.</p>
+          <h3>Access to memory needs its own protection</h3>
+          <p>The HTTP server checks a bearer token before allowing access to its MCP tools. That token identifies a role; the role and policy decide what the client may do. An encrypted connection protects data in transit, while authentication decides who gets access.</p>
+          <p>For remote use, keep access inside a private network where possible, or expose it through HTTPS with authentication. Credentials belong in the client’s secure configuration, never in a public article, page source or shared link.</p>
+          <p class="note">The current integration uses configured tokens. Individual client credentials, revocation and rotation are further security work. A full OAuth 2.1 sign-in flow is an option for compatible remote clients, not a feature claimed as already implemented here.</p>
+        </section>
+        <section id="praktyka" class="reveal">
+          <h2>Queues, performance and limitations</h2>
+          <p>This also affects response time. A write through <code>brain_push</code> goes into the queue, while a direct edit through <code>brain_note_write</code> refreshes the index and may compute embeddings. A large import and a short question have very different costs. The CPU embedder gives queries priority between successive document chunks.</p>
+          <h3>Frequently asked questions</h3>
+          <div class="facts">
+            <details name="brain-faq"><summary><span>Does Brain become "smarter" by itself?</span><img class="icon" src="../shared/icons/caret-down.svg" width="20" height="20" alt="" aria-hidden="true"></summary><p>The collection of stored information grows, its organization improves and more context becomes available. These operations do not change the language model’s weights. Answer quality still depends on the notes, retrieval and the model using them.</p></details>
+            <details name="brain-faq"><summary><span>Can every program use it?</span><img class="icon" src="../shared/icons/caret-down.svg" width="20" height="20" alt="" aria-hidden="true"></summary><p>A program needs an MCP client or an adapter that calls the server’s tools. Having a server does not automatically connect every application. The client also decides when to save an important finding and when to search for earlier knowledge.</p></details>
+            <details name="brain-faq"><summary><span>What remains available if the model stops responding?</span><img class="icon" src="../shared/icons/caret-down.svg" width="20" height="20" alt="" aria-hidden="true"></summary><p>Markdown files remain available. An accepted note stays in the INBOX and queue, and keyword search can work without vectors. Sorting and answer generation require a working model. Each function has different dependencies.</p></details>
+          </div>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><span>Second Brain / Kacper</span><span>Corrected by AI, not fully written.</span><span>The article and diagrams work offline.</span><a href="#top">Back to top</a></footer>
+</div>
+<div class="tooltip" id="glossary-tooltip" role="tooltip" hidden></div>
+<div class="author-card" id="author-card" role="dialog" aria-label="Kacper’s profiles" tabindex="-1" hidden><h2>Kacper</h2><p>Author of this article.</p><div class="author-links" id="author-links"><a href="https://github.com/" target="_blank" rel="noopener noreferrer" aria-label="GitHub, opens in a new tab" title="GitHub"><img class="icon profile-icon" src="../shared/icons/github-logo.svg" width="24" height="24" alt="" aria-hidden="true"></a></div></div>
+<script>
+  'use strict';
+  const glossary={
+  "sqlite": [
+    "SQLite",
+    "A database stored in a file. In this project it holds the document index and the state of the queue, approvals and audit."
+  ],
+  "sqlite_vec": [
+    "sqlite-vec",
+    "A SQLite extension for vector search. It compares the question embedding with vectors stored for document passages."
+  ],
+  "fts5": [
+    "FTS5",
+    "SQLite’s full-text search module. It indexes the words in documents and retrieves matching phrases."
+  ],
+  "mcp": [
+    "MCP",
+    "Model Context Protocol. A shared way for an AI client to call a server’s tools. Brain uses it to save and retrieve notes, among other operations."
+  ],
+  "markdown": [
+    "Markdown",
+    "Plain text with notation for headings, lists and links. You can read an .md file without the application that created it."
+  ],
+  "worker": [
+    "Worker",
+    "A background process. It picks up queued jobs and performs more expensive operations, such as computing embeddings and sorting notes."
+  ],
+  "chunk": [
+    "Chunk",
+    "A document passage used for retrieval. The system selects passages related to a question instead of putting the whole vault into the model’s context."
+  ],
+  "idempotency": [
+    "Idempotency",
+    "Retrying the same request produces the same record. request_id identifies a repeated submission, for example after a lost connection."
+  ],
+  "embedding": [
+    "Embedding",
+    "A numeric vector representing text. Questions and passages with similar meanings can be close in this space even when they use different words."
+  ],
+  "rrf": [
+    "RRF",
+    "Reciprocal Rank Fusion. It merges ranked lists based on result positions, without directly comparing the different score scales of FTS5 and vector search."
+  ],
+  "reranker": [
+    "Reranker",
+    "A model that scores a question and passage together. It reorders a shortlist more precisely than the initial retrieval stage."
+  ],
+  "rag": [
+    "RAG",
+    "Retrieval-Augmented Generation. The system retrieves context first, then the model uses it to answer. Providing notes is not model training."
+  ],
+  "graphrag": [
+    "GraphRAG",
+    "An approach where a relationship graph participates in retrieval or context construction. Drawing connections between notes does not provide this by itself."
+  ]
+};
+  const flows={
+  "write": [
+    [
+      "robot",
+      "Agent",
+      "MCP",
+      "The client chooses what to save",
+      "The agent sends content, a title and source information. Brain does not automatically capture every conversation from every program."
+    ],
+    [
+      "plus-circle",
+      "Write",
+      "brain_push",
+      "Validation before saving",
+      "The server checks the content and request identifier. Secrets should not be stored in memory; a repeated request_id can locate the existing record."
+    ],
+    [
+      "tray",
+      "INBOX",
+      "queue",
+      "The content is already saved",
+      "A Markdown file and a queue job are created. Accepting the note does not wait for the sorting model. The next processing stage runs in the background."
+    ],
+    [
+      "stack",
+      "Chunks",
+      "embedding",
+      "The document becomes searchable",
+      "The worker splits the text into chunks. It indexes words and computes passage embeddings for later semantic retrieval."
+    ],
+    [
+      "brain",
+      "Sorting",
+      "LLM",
+      "The model proposes a location and facts",
+      "The sorter selects a folder from an allowed list, tags and proposed facts. Model-generated conclusions receive proposed status. Code validates the result before changing the note."
+    ],
+    [
+      "database",
+      "Index",
+      "SQLite",
+      "The file and index are consistent again",
+      "The worker updates document metadata, chunks, vectors and facts. It closes the job and records an audit event."
+    ]
+  ],
+  "read": [
+    [
+      "magnifying-glass",
+      "Question",
+      "brain_pull",
+      "A query within the allowed scope",
+      "The server determines which spaces the role can access. The question can be narrowed to a project or space before retrieval builds a candidate list."
+    ],
+    [
+      "list-magnifying-glass",
+      "Two paths",
+      "FTS + vector",
+      "Words and meaning",
+      "FTS5 searches the text. The embedder computes a query vector, and sqlite-vec selects similar passages. Both paths apply access filters."
+    ],
+    [
+      "git-merge",
+      "Merge",
+      "RRF",
+      "One candidate list",
+      "RRF combines positions from keyword and semantic rankings. A passage ranked highly in both lists can receive a better position."
+    ],
+    [
+      "sort-descending",
+      "Ranking",
+      "reranker",
+      "A second look at the results",
+      "The reranker compares the question with selected passages. Weak matches can receive low_confidence. The result still needs careful interpretation."
+    ],
+    [
+      "file-text",
+      "Sources",
+      "path + status",
+      "Context with provenance",
+      "The client receives content, a path and metadata. brain_open opens the full document so the client can check whether the passage supports the answer."
+    ],
+    [
+      "chat-circle-text",
+      "Answer",
+      "RAG",
+      "The model uses the passages",
+      "The client model can use brain_pull results. brain_answer builds context inside Brain. Retrieving results alone does not generate an answer."
+    ]
+  ]
+};
+  const graphNotes={
+  "project": [
+    "Project",
+    "A grouping node. Folder edges show where documents live; green edges show explicit references between notes."
+  ],
+  "decision": [
+    "decision.md",
+    "Contains the reasoning behind a choice and references to the specification and tests. In this example, green edges are links written into the document."
+  ],
+  "spec": [
+    "specification.md",
+    "The project’s assumptions. A link from the decision lets you revisit the constraints that mattered when choosing a solution."
+  ],
+  "test": [
+    "tests.md",
+    "Describes how the solution was checked. A reference to deployment points to another document; the connection alone does not tell you whether tests pass now."
+  ],
+  "deploy": [
+    "deployment.md",
+    "Notes about running the project. This is an example note, not a live production status panel."
+  ],
+  "ideas": [
+    "ideas.md",
+    "A document in the same folder with no explicit link to the others. Sharing a location does not necessarily mean sharing a conclusion."
+  ]
+};
+  let flow='write',step=0,playTimer=null,tipTrigger=null;
+  const rail=document.getElementById('step-rail'),explainer=document.getElementById('step-explainer'),playButton=document.getElementById('play-flow'),tip=document.getElementById('glossary-tooltip');
+  function textElement(tag,text,className){const e=document.createElement(tag);e.textContent=text;if(className)e.className=className;return e;}
+  function createIcon(name){const img=document.createElement('img');img.className='icon';img.src='../shared/icons/'+name+'.svg';img.width=20;img.height=20;img.alt='';img.setAttribute('aria-hidden','true');return img;}
+  function setPlayState(playing){playButton.replaceChildren(createIcon(playing?'pause':'play'),textElement('span',playing?'Pause':'Play'));playButton.setAttribute('aria-pressed',String(playing));}
+  function stopPlayback(){clearInterval(playTimer);playTimer=null;setPlayState(false);}
+  let renderedFlow=null,stepAnimation=null;
+  function renderFlow(){
+    if(renderedFlow!==flow){
+      rail.replaceChildren();
+      flows[flow].forEach((entry,i)=>{
+        const li=document.createElement('li'),button=document.createElement('button'),disc=document.createElement('span');
+        button.type='button';button.className='step';button.dataset.step=String(i);button.setAttribute('aria-label',entry[1]+' '+entry[2]+': '+entry[3]);
+        disc.className='disc';disc.append(createIcon(entry[0]));button.append(disc,textElement('b',entry[1]),document.createTextNode(' '),textElement('small',entry[2]));
+        button.addEventListener('click',()=>{stopPlayback();step=i;renderFlow();});li.append(button);rail.append(li);
+      });
+      renderedFlow=flow;
+    }
+    [...rail.children].forEach((li,i)=>{li.classList.toggle('done',i<step);const button=li.firstElementChild;button.classList.toggle('selected',i===step);button.setAttribute('aria-pressed',String(i===step));});
+    const entry=flows[flow][step];explainer.replaceChildren(textElement('h3',entry[3]),textElement('p',entry[4]));
+    stepAnimation?.cancel();
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&explainer.animate)stepAnimation=explainer.animate([{opacity:.94,transform:'translateY(1px)'},{opacity:1,transform:'translateY(0)'}],{duration:150,easing:'ease-out'});
+    document.getElementById('step-count').textContent=(step+1)+' / '+flows[flow].length;
+    document.querySelectorAll('[data-flow]').forEach(button=>{const selected=button.dataset.flow===flow;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});
+    document.getElementById('pipeline-panel').setAttribute('aria-labelledby','tab-'+flow);
+  }
+  document.querySelectorAll('[data-flow]').forEach(b=>{b.addEventListener('click',()=>{stopPlayback();flow=b.dataset.flow;step=0;renderFlow();});b.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const target=document.getElementById(e.key==='Home'?'tab-write':e.key==='End'?'tab-read':b.id==='tab-write'?'tab-read':'tab-write');target.click();target.focus();});});
+  document.getElementById('next-step').addEventListener('click',()=>{stopPlayback();step=(step+1)%flows[flow].length;renderFlow();});
+  playButton.setAttribute('aria-pressed','false');playButton.addEventListener('click',()=>{if(playTimer){stopPlayback();return;}if(step===flows[flow].length-1)step=0;renderFlow();setPlayState(true);playTimer=setInterval(()=>{if(step>=flows[flow].length-1){stopPlayback();return;}step++;renderFlow();if(step===flows[flow].length-1)stopPlayback();},2300);});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopPlayback();});
+  function hideTip(){tip.classList.remove('visible');tip.hidden=true;if(tipTrigger){tipTrigger.setAttribute('aria-expanded','false');tipTrigger.removeAttribute('aria-describedby');}tipTrigger=null;}
+  function showTip(button){const definition=glossary[button.dataset.term];if(!definition)return;hideTip();tipTrigger=button;tip.replaceChildren(textElement('b',definition[0]),textElement('span',definition[1]));tip.hidden=false;button.setAttribute('aria-describedby',tip.id);button.setAttribute('aria-expanded','true');const r=button.getBoundingClientRect(),t=tip.getBoundingClientRect();const left=Math.max(14,Math.min(innerWidth-t.width-14,r.left+r.width/2-t.width/2));const below=r.bottom+12;const top=below+t.height<innerHeight-14?below:Math.max(14,r.top-t.height-12);tip.style.left=left+'px';tip.style.top=top+'px';tip.classList.add('visible');}
+  const termIcons={mcp:'plugs-connected',markdown:'file-text',worker:'cpu',chunk:'stack',idempotency:'fingerprint',embedding:'stack',rrf:'git-merge',reranker:'sort-descending',rag:'chat-circle-text',graphrag:'tree-structure',sqlite:'database',sqlite_vec:'database',fts5:'list-magnifying-glass'};
+  document.querySelectorAll('[data-term]').forEach(button=>button.prepend(createIcon(termIcons[button.dataset.term]||'file-text')));
+  document.querySelectorAll('[data-term]').forEach(b=>{b.setAttribute('aria-expanded','false');b.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')showTip(b);});b.addEventListener('pointerleave',()=>{if(document.activeElement!==b)hideTip();});b.addEventListener('focus',()=>showTip(b));b.addEventListener('blur',hideTip);b.addEventListener('click',()=>{if(tipTrigger===b&&tip.classList.contains('visible')&&b.dataset.tapped==='true'){hideTip();b.dataset.tapped='false';}else{showTip(b);b.dataset.tapped='true';}});});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip();});document.addEventListener('pointerdown',e=>{if(!e.target.closest('[data-term]'))hideTip();});window.addEventListener('resize',hideTip);document.addEventListener('wheel',hideTip,{passive:true});document.addEventListener('touchmove',hideTip,{passive:true});
+  function selectNode(node){const entry=graphNotes[node.dataset.node];document.querySelectorAll('.graph-node').forEach(n=>{const selected=n===node;n.classList.toggle('selected',selected);n.setAttribute('aria-pressed',String(selected));});document.getElementById('graph-detail').replaceChildren(textElement('b',entry[0]),textElement('p',entry[1]));}
+  document.querySelectorAll('.graph-node').forEach(n=>{n.addEventListener('click',()=>selectNode(n));n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectNode(n);}});});
+  document.querySelectorAll('[data-edge]').forEach(b=>b.addEventListener('click',()=>{const kind=b.dataset.edge;document.querySelectorAll('[data-edge]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.querySelectorAll('.graph-edge').forEach(e=>e.style.opacity=kind==='all'||e.classList.contains(kind)?'1':'.1');}));
+  const faqItems=[...document.querySelectorAll('.facts details')];
+  faqItems.forEach(item=>item.addEventListener('toggle',()=>{if(item.open)faqItems.forEach(other=>{if(other!==item)other.open=false;});}));
+  const sections=document.querySelectorAll('.article section'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  reduced.addEventListener('change',()=>{if(reduced.matches){stopPlayback();stepAnimation?.cancel();sections.forEach(section=>section.classList.remove('pending'));}});
+  if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;entry.target.classList.remove('pending');document.querySelectorAll('.toc a').forEach(a=>{const active=a.hash==='#'+entry.target.id;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current');});});},{rootMargin:'-5% 0px -45% 0px',threshold:0});sections.forEach(s=>{if(!reduced.matches)s.classList.add('pending');observer.observe(s);});}
+  document.getElementById('reading-time').textContent=Math.max(1,Math.ceil(document.querySelector('.article').textContent.trim().split(/\s+/).length/210))+' min';
+  const authorButton=document.getElementById('author-button'),authorCard=document.getElementById('author-card');
+  let authorCloseTimer=null,authorPinned=false;
+  function cancelAuthorClose(){clearTimeout(authorCloseTimer);authorCloseTimer=null;}
+  function showAuthor(){
+    cancelAuthorClose();authorCard.hidden=false;authorButton.setAttribute('aria-expanded','true');
+    const button=authorButton.getBoundingClientRect(),card=authorCard.getBoundingClientRect();
+    authorCard.style.left=Math.max(14,Math.min(innerWidth-card.width-14,button.left+button.width/2-card.width/2))+'px';
+    authorCard.style.top=(button.bottom+8+card.height<innerHeight-14?button.bottom+8:Math.max(14,button.top-card.height-8))+'px';
+  }
+  function hideAuthor(){cancelAuthorClose();authorPinned=false;authorCard.hidden=true;authorButton.setAttribute('aria-expanded','false');}
+  function scheduleAuthorClose(){if(authorPinned)return;cancelAuthorClose();authorCloseTimer=setTimeout(()=>{if(!authorCard.contains(document.activeElement))hideAuthor();},200);}
+  authorButton.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showAuthor();});
+  authorButton.addEventListener('pointerleave',scheduleAuthorClose);
+  authorButton.addEventListener('focus',showAuthor);
+  authorButton.addEventListener('blur',event=>{if(!authorCard.contains(event.relatedTarget))scheduleAuthorClose();});
+  authorButton.addEventListener('click',()=>{if(authorPinned){hideAuthor();return;}authorPinned=true;showAuthor();});
+  authorButton.addEventListener('keydown',event=>{if(event.key==='ArrowDown'){event.preventDefault();showAuthor();(authorCard.querySelector('a')||authorCard).focus();}});
+  authorCard.addEventListener('pointerenter',cancelAuthorClose);
+  authorCard.addEventListener('pointerleave',scheduleAuthorClose);
+  authorCard.addEventListener('focusin',cancelAuthorClose);
+  authorCard.addEventListener('focusout',event=>{if(event.relatedTarget!==authorButton&&!authorCard.contains(event.relatedTarget))scheduleAuthorClose();});
+  document.addEventListener('pointerdown',event=>{if(!authorCard.contains(event.target)&&!authorButton.contains(event.target))hideAuthor();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!authorCard.hidden){if(authorCard.contains(document.activeElement))authorButton.focus({preventScroll:true});hideAuthor();}});
+  window.addEventListener('resize',hideAuthor);document.addEventListener('wheel',event=>{if(!authorCard.contains(event.target))hideAuthor();},{passive:true});
+  renderFlow();
+  (()=>{const bar=document.querySelector('.progress'),fill=bar&&bar.firstElementChild;if(!fill)return;let queued=false;const draw=()=>{queued=false;const room=document.documentElement.scrollHeight-innerHeight;fill.style.transform='scaleX('+(room>0?Math.min(1,Math.max(0,scrollY/room)):1)+')';};const queue=()=>{if(!queued){queued=true;requestAnimationFrame(draw);}};addEventListener('scroll',queue,{passive:true});addEventListener('resize',queue);addEventListener('load',queue);draw();})();
+</script>
+</body>
+</html>

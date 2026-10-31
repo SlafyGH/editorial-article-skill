@@ -1,0 +1,1041 @@
+{
+ "date": "2026-10-30",
+ "project": "E4B · Automatyzacje bez AI",
+ "ai_role": "drafted",
+ "runner_engine": "engine",
+ "author": {
+  "name": "Wiktor"
+ },
+ "languages": {
+  "en": {
+   "title": "Eleven automations that don't need AI",
+   "title_lines": [
+    "Eleven automations",
+    "that don't need AI"
+   ],
+   "subtitle": "Invoices, payments, orders, stock and mail checked against explicit rules in n8n. The same file always gives the same result, and you can run every one of them on this page.",
+   "category": "Case study · Automation",
+   "glossary": {
+    "n8n": {
+     "title": "n8n",
+     "text": "A tool for building automations from blocks on a canvas. Each block (node) does one thing: reads mail, opens a file, checks a condition, writes a row.",
+     "icon": "tree-structure"
+    },
+    "regula": {
+     "title": "Rule",
+     "text": "A condition written out in full, for example: net plus VAT must equal gross within one grosz. Anyone can read and check it; nobody has to guess what the program meant.",
+     "icon": "check-circle"
+    },
+    "nip": {
+     "title": "NIP checksum",
+     "text": "The last digit of a Polish tax ID (NIP) follows from the nine before it (weights 6, 5, 7, 2, 3, 4, 5, 6, 7, remainder of division by 11). A typo almost always breaks it, so it can be caught without querying any registry.",
+     "icon": "fingerprint"
+    },
+    "rejestr": {
+     "title": "Registry",
+     "text": "A table where the automation records what it has already handled, for example the seller's tax ID and the invoice number. On the next run it checks there first.",
+     "icon": "database"
+    },
+    "status": {
+     "title": "Status",
+     "text": "One word that says what happened to a document: accepted, to fix, duplicate, already accepted, file error. A plain-sentence reason always comes with it.",
+     "icon": "list-magnifying-glass"
+    },
+    "csv": {
+     "title": "CSV report",
+     "text": "A plain table file. This one uses semicolons, UTF-8 and a decimal comma, so Excel in Polish opens it straight away, without an import wizard or broken characters.",
+     "icon": "file-text"
+    },
+    "harmonogram": {
+     "title": "Schedule",
+     "text": "Running an automation at a fixed time, for example every morning at 7:00 or on the first day of the month.",
+     "icon": "arrows-clockwise"
+    }
+   },
+   "sections": [
+    {
+     "id": "problem",
+     "title": "Work that needs no judgement",
+     "toc": "Problem",
+     "blocks": [
+      {
+       "type": "lead",
+       "text": "Every company has work that someone does the same way every week: checking that an invoice has a tax ID, working out who is behind on payments, copying exports from several branches into one table."
+      },
+      {
+       "type": "paragraph",
+       "text": "This work needs patience, not judgement. By the fiftieth identical document it is easy to miss something."
+      },
+      {
+       "type": "paragraph",
+       "text": "More and more often a language model gets thrown at tasks like these. I think it is the wrong tool here: a model may answer slightly differently each time, every use costs money and it is hard to check that it counted correctly. To know whether a total adds up, addition is enough."
+      },
+      {
+       "type": "paragraph",
+       "text": "So I built eleven automations in [term:n8n|n8n] that take this work over. Each runs only on explicit [term:regula|rules]: the same file always gives the same result, and every decision can be explained in one sentence. You can run all of them further down this page."
+      }
+     ]
+    },
+    {
+     "id": "tasma",
+     "title": "One conveyor for all eleven",
+     "toc": "Structure",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "I built them all on one layout, so once you know one, the rest are easy to read. A document passes six stations and gets stamped at one of them."
+      },
+      {
+       "type": "conveyor",
+       "title": "The path of one document",
+       "caption": "Hover a station to see what happens there. All eleven automations look like this.",
+       "stations": [
+        {
+         "icon": "tray",
+         "label": "Source",
+         "tip": "Where files come from: a form, a mailbox, a Google Drive folder, another automation or a schedule. The source is connected once; the logic after it stays the same."
+        },
+        {
+         "icon": "list-magnifying-glass",
+         "label": "Settings",
+         "tip": "The only place a company edits: thresholds, currencies, budgets, addresses. If something is wrong, the automation stops and lists every error at once, not one by one."
+        },
+        {
+         "icon": "file-text",
+         "label": "Read",
+         "tip": "Detects the file type and reads it: CSV, Excel, ODS, JSON, XML, and for invoices also PDF with a text layer. A broken file gets its own status and does not stop the rest."
+        },
+        {
+         "icon": "check-circle",
+         "label": "Check",
+         "tip": "Applies the rules and stamps each document with a status and a reason written as a plain sentence.",
+         "stamps": true
+        },
+        {
+         "icon": "database",
+         "label": "Registry",
+         "tip": "Compares the result with what was already handled. An invoice accepted yesterday gets \"already accepted\" today and is not reported a second time."
+        },
+        {
+         "icon": "printer",
+         "label": "Report",
+         "tip": "A CSV file that opens straight away in Excel. The report can also be emailed to the person responsible."
+        }
+       ],
+       "stamps": [
+        {
+         "label": "PRZYJETA",
+         "tone": "ok"
+        },
+        {
+         "label": "DO_POPRAWY",
+         "tone": "human"
+        },
+        {
+         "label": "JUZ_PRZYJETA",
+         "tone": "seen"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "reguly",
+     "title": "What \"by the rules\" means",
+     "toc": "Rules",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Take invoice checking. I set it up so that an invoice must have a number, the seller's tax ID, an issue date and a gross amount. A Polish tax ID goes through a [term:nip|checksum test], so a typo shows up immediately. Net plus VAT must equal gross to the grosz, and the payment due date cannot fall before the issue date."
+      },
+      {
+       "type": "paragraph",
+       "text": "When something doesn't match, my automation doesn't guess a fix. \"1,234\" could mean one thousand two hundred thirty four zloty or one zloty and change, so the invoice gets the [term:status|status] \"to fix\" with the reason: ambiguous amount. A person fixes it, and knows at once which invoice and which field to check."
+      },
+      {
+       "type": "paragraph",
+       "text": "Without a [term:rejestr|registry] every run would report the same invoices again, and a customer who had paid would get another reminder. With it, a payment reminder goes out once per stage: before the due date, then 1, 14 and 30 days after it. A site outage is reported once, not every five minutes, and a separate message says when it is over."
+      },
+      {
+       "type": "paragraph",
+       "text": "The output is a [term:csv|CSV report] you can open, sort and pass on without any extra software. An automation runs by hand or on a [term:harmonogram|schedule], for example every morning."
+      }
+     ]
+    },
+    {
+     "id": "wyprobuj",
+     "title": "Run them here",
+     "toc": "Try it",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Below runs my code from n8n, without a single change, laid out as on the n8n canvas. I added a sample with fictional data to every automation. Click \"Run the sample\" a second time: the registry recognises the documents it has already seen, and the report marks them as already accepted. You can also upload your own file. It stays in your browser and is never sent anywhere."
+      },
+      {
+       "type": "runner",
+       "title": "Automations in your browser",
+       "side_title": "Run in n8n",
+       "caption": "The run and the counts on the connections come from the automation code running on this page. Download the report from the canvas after the run. Files never leave your browser.",
+       "disclosure": "Files never leave your browser. Mail, Google Drive and sending email only work once accounts are connected in n8n; here they are skipped.",
+       "text": {
+        "sample": "Run the sample",
+        "again": "Run again",
+        "upload": "Your files",
+        "clear": "Clear registry",
+        "drop": "Drop files here",
+        "empty": "Pick an automation and run the sample.",
+        "loading": "Running…",
+        "failed": "Could not run",
+        "node1": "node",
+        "node2": "nodes",
+        "node5": "nodes",
+        "row1": "item",
+        "row2": "items",
+        "row5": "items",
+        "run": "run",
+        "known": "recognised in the registry",
+        "fit": "Fit",
+        "item1": "item",
+        "item2": "items",
+        "item5": "items",
+        "exec1": "step",
+        "exec2": "steps",
+        "exec5": "steps",
+        "running": "Running"
+       },
+       "workflows": [
+        {
+         "id": "katalog-02",
+         "label": "Invoices",
+         "text": "fields and tax ID",
+         "fields": [
+          "invoice_number",
+          "seller_name"
+         ]
+        },
+        {
+         "id": "katalog-10-13",
+         "label": "Payment due dates",
+         "text": "reminders and demands",
+         "fields": [
+          "invoice_no",
+          "customer"
+         ]
+        },
+        {
+         "id": "katalog-11",
+         "label": "Payments",
+         "text": "partial payments and balance",
+         "fields": [
+          "invoice_number",
+          "buyer_name"
+         ]
+        },
+        {
+         "id": "katalog-18-19",
+         "label": "Orders",
+         "text": "prices, totals, addresses",
+         "fields": [
+          "order_id",
+          "customer"
+         ]
+        },
+        {
+         "id": "katalog-24-91",
+         "label": "Stock",
+         "text": "shortages and reorders",
+         "fields": [
+          "sku",
+          "name"
+         ]
+        },
+        {
+         "id": "katalog-43",
+         "label": "Site uptime",
+         "text": "outage reported once",
+         "fields": [
+          "service"
+         ],
+         "upload": false
+        },
+        {
+         "id": "katalog-61",
+         "label": "Merging files",
+         "text": "many exports, one table",
+         "fields": [
+          "file_name",
+          "row_key"
+         ]
+        },
+        {
+         "id": "katalog-68",
+         "label": "Supplier prices",
+         "text": "increases and cheapest",
+         "fields": [
+          "supplier",
+          "name"
+         ]
+        },
+        {
+         "id": "katalog-69-72",
+         "label": "Mail",
+         "text": "categories by rules",
+         "fields": [
+          "subject",
+          "from"
+         ],
+         "status_field": "decision",
+         "accept": ".eml"
+        },
+        {
+         "id": "katalog-81",
+         "label": "Expenses",
+         "text": "categories and budget",
+         "fields": [
+          "counterparty",
+          "description"
+         ]
+        },
+        {
+         "id": "katalog-93",
+         "label": "Sales report",
+         "text": "monthly PDF",
+         "fields": [
+          "document",
+          "product"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "zestaw",
+     "title": "What the set includes",
+     "toc": "The set",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "On each n8n canvas I wrote a description in Polish: how it works, how to connect it and a glossary. The built-in sample always gives the same result, so after any change you can see whether something broke."
+      },
+      {
+       "type": "summary",
+       "items": [
+        {
+         "label": "Invoices",
+         "text": "Required fields, tax ID checksum, net plus VAT equal to gross, currencies, duplicates within one batch of files."
+        },
+        {
+         "label": "Payment due dates",
+         "text": "A reminder up to seven days before the due date, demands after 1, 14 and 30 days, overdue buckets, no reminder for disputed invoices."
+        },
+        {
+         "label": "Payments",
+         "text": "Bank statement transfers (CSV, MT940, camt.053) matched to invoices by the number in the title, partial payments, overpayments and balance."
+        },
+        {
+         "label": "Orders",
+         "text": "Price list prices, line totals with shipping, postal codes by country. One error holds the whole order."
+        },
+        {
+         "label": "Stock",
+         "text": "Shortage and low stock after reservations, a reorder proposal rounded up to the pack size and grouped by supplier."
+        },
+        {
+         "label": "Site uptime",
+         "text": "Response code, time, required text on the page. An outage is reported once, with a separate message when it ends."
+        },
+        {
+         "label": "Merging files",
+         "text": "Exports from different branches and programs, with different column names, in one table without repeats."
+        },
+        {
+         "label": "Supplier prices",
+         "text": "Increases and decreases above a threshold, the cheapest supplier for the same item, currency and unit."
+        },
+        {
+         "label": "Mail",
+         "text": "Messages assigned to categories by rules (sender, subject, attachment). Conflicting rules go to a person."
+        },
+        {
+         "label": "Expenses",
+         "text": "Categories from the file or by keywords, compared with the month's budget."
+        },
+        {
+         "label": "Sales report",
+         "text": "A monthly PDF with totals per currency, corrections, a ranking and comparison with the previous month."
+        }
+       ]
+      },
+      {
+       "type": "note",
+       "text": "On purpose, none of them sends anything to customers or suppliers or orders anything on its own. Each prepares a finished list, and the action stays with the person responsible for it."
+      }
+     ]
+    },
+    {
+     "id": "mapa",
+     "title": "How they connect",
+     "toc": "Map",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Some automations handle the same document at successive stages: an invoice is checked first, then its due date is watched, and finally payments settle it. Each can still be deployed on its own, without the others."
+      },
+      {
+       "type": "graph",
+       "title": "Relations between the automations",
+       "caption": "An overview map: which automations deal with the same documents. Each one works on its own.",
+       "nodes": [
+        {
+         "id": "faktury",
+         "title": "Invoices",
+         "text": "Checks an invoice before it reaches accounting.",
+         "x": 110,
+         "y": 70
+        },
+        {
+         "id": "terminy",
+         "title": "Payment due dates",
+         "text": "Watches the due date of the same invoice.",
+         "x": 300,
+         "y": 50
+        },
+        {
+         "id": "wplaty",
+         "title": "Payments",
+         "text": "Settles payments and shows what is left on the invoice.",
+         "x": 480,
+         "y": 80
+        },
+        {
+         "id": "zamowienia",
+         "title": "Orders",
+         "text": "Checks orders before they go to fulfilment.",
+         "x": 120,
+         "y": 200
+        },
+        {
+         "id": "magazyn",
+         "title": "Stock",
+         "text": "Watches stock of the same items.",
+         "x": 300,
+         "y": 220
+        },
+        {
+         "id": "ceny",
+         "title": "Supplier prices",
+         "text": "Shows where those items are cheapest.",
+         "x": 480,
+         "y": 220
+        },
+        {
+         "id": "sprzedaz",
+         "title": "Sales report",
+         "text": "Sums up the month's sales in one PDF.",
+         "x": 590,
+         "y": 150
+        },
+        {
+         "id": "poczta",
+         "title": "Mail",
+         "text": "Routes messages with invoices and orders to the right people.",
+         "x": 40,
+         "y": 140
+        }
+       ],
+       "edges": [
+        {
+         "from": "poczta",
+         "to": "faktury",
+         "kind": "link"
+        },
+        {
+         "from": "poczta",
+         "to": "zamowienia",
+         "kind": "link"
+        },
+        {
+         "from": "faktury",
+         "to": "terminy",
+         "kind": "link"
+        },
+        {
+         "from": "terminy",
+         "to": "wplaty",
+         "kind": "link"
+        },
+        {
+         "from": "zamowienia",
+         "to": "magazyn",
+         "kind": "link"
+        },
+        {
+         "from": "magazyn",
+         "to": "ceny",
+         "kind": "link"
+        },
+        {
+         "from": "zamowienia",
+         "to": "sprzedaz",
+         "kind": "group"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "faq",
+     "title": "Questions",
+     "toc": "Questions",
+     "blocks": [
+      {
+       "type": "faq",
+       "items": [
+        {
+         "question": "Why no AI?",
+         "answer": "Because these tasks have one correct answer. A rule gives it the same way every time, costs nothing per use and can be checked. I keep AI for places where something has to be understood, not counted."
+        },
+        {
+         "question": "What happens when data is missing?",
+         "answer": "The automation does not guess. The document gets the status \"to fix\" or \"to clarify\" with a specific reason and waits for a person."
+        },
+        {
+         "question": "Won't the same thing be reported twice?",
+         "answer": "No. The registry remembers what was already handled, so a second run on the same files gives \"already accepted\" or \"already reported\". You can see this in the samples above."
+        },
+        {
+         "question": "Do we need our own server?",
+         "answer": "No. n8n in the cloud is enough. Your own server is only needed to check services on the company network, because cloud n8n cannot see it."
+        },
+        {
+         "question": "Can the rules be adapted to our company?",
+         "answer": "Yes. Thresholds, currencies, budgets, categories and addresses are changed in a single settings node, without touching the logic."
+        },
+        {
+         "question": "What about company data?",
+         "answer": "In n8n the data stays in the company's account. On this page uploaded files are processed in the browser and never sent anywhere."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "pl": {
+   "title": "Jedenaście automatyzacji, które nie potrzebują sztucznej inteligencji",
+   "title_lines": [
+    "Jedenaście automatyzacji,",
+    "które nie potrzebują AI"
+   ],
+   "subtitle": "Faktury, płatności, zamówienia, magazyn i poczta sprawdzane według jawnych reguł w n8n. Ten sam plik zawsze daje ten sam wynik, a każdą z nich można uruchomić na tej stronie.",
+   "category": "Realizacja · Automatyzacja",
+   "glossary": {
+    "n8n": {
+     "title": "n8n",
+     "text": "Program do budowania automatyzacji z klocków na płótnie. Każdy klocek (węzeł) robi jedną rzecz: czyta pocztę, otwiera plik, sprawdza warunek, zapisuje wiersz.",
+     "icon": "tree-structure"
+    },
+    "regula": {
+     "title": "Reguła",
+     "text": "Warunek zapisany wprost, na przykład: netto plus VAT musi się równać brutto z tolerancją jednego grosza. Można go przeczytać i sprawdzić, nie trzeba zgadywać, co program „miał na myśli”.",
+     "icon": "check-circle"
+    },
+    "nip": {
+     "title": "Suma kontrolna NIP",
+     "text": "Ostatnia cyfra NIP wynika z dziewięciu poprzednich (wagi 6, 5, 7, 2, 3, 4, 5, 6, 7, reszta z dzielenia przez 11). Literówka prawie zawsze ją psuje, więc da się ją wykryć bez łączenia z żadnym rejestrem.",
+     "icon": "fingerprint"
+    },
+    "rejestr": {
+     "title": "Rejestr",
+     "text": "Tabela, w której automatyzacja zapisuje, co już obsłużyła: na przykład NIP sprzedawcy i numer faktury. Przy następnym uruchomieniu najpierw tam zagląda.",
+     "icon": "database"
+    },
+    "status": {
+     "title": "Status",
+     "text": "Jedno słowo, które mówi, co stało się z dokumentem: przyjęty, do poprawy, duplikat, już przyjęty, błąd pliku. Obok zawsze stoi powód zapisany zwykłym zdaniem.",
+     "icon": "list-magnifying-glass"
+    },
+    "csv": {
+     "title": "Raport CSV",
+     "text": "Zwykły plik tabeli. Ten zapisany jest średnikami i w UTF-8 z przecinkiem dziesiętnym, więc polski Excel otwiera go od razu, bez importu i bez krzaczków.",
+     "icon": "file-text"
+    },
+    "harmonogram": {
+     "title": "Harmonogram",
+     "text": "Uruchamianie automatyzacji o stałej porze, na przykład co rano o 7:00 albo pierwszego dnia miesiąca.",
+     "icon": "arrows-clockwise"
+    }
+   },
+   "sections": [
+    {
+     "id": "problem",
+     "title": "Praca, która nie wymaga myślenia",
+     "toc": "Problem",
+     "blocks": [
+      {
+       "type": "lead",
+       "text": "W każdej firmie jest robota, którą ktoś robi co tydzień tak samo: sprawdza, czy faktura ma NIP, liczy, kto zalega z płatnością, przepisuje eksporty z kilku oddziałów do jednej tabeli."
+      },
+      {
+       "type": "paragraph",
+       "text": "Ta praca nie wymaga oceny, tylko cierpliwości. Przy pięćdziesiątym takim samym dokumencie łatwo coś przeoczyć."
+      },
+      {
+       "type": "paragraph",
+       "text": "Do takich zadań coraz częściej wrzuca się model językowy. Ja uważam, że tutaj to zły pomysł: model może za każdym razem odpowiedzieć trochę inaczej, płaci się za każde użycie i trudno sprawdzić, czy policzył dobrze. Żeby wiedzieć, czy suma się zgadza, wystarczy dodawanie."
+      },
+      {
+       "type": "paragraph",
+       "text": "Dlatego zbudowałem w [term:n8n|n8n] jedenaście automatyzacji, które przejmują tę pracę. Każda działa wyłącznie na jawnych [term:regula|regułach]: ten sam plik zawsze daje ten sam wynik, a każdą decyzję da się wytłumaczyć jednym zdaniem. Wszystkie możesz uruchomić niżej, na tej stronie."
+      }
+     ]
+    },
+    {
+     "id": "tasma",
+     "title": "Jedna taśma dla wszystkich jedenastu",
+     "toc": "Budowa",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Wszystkie zbudowałem według jednego układu, więc po poznaniu jednej łatwo czytać pozostałe. Dokument przechodzi przez sześć stanowisk i na jednym z nich dostaje pieczątkę."
+      },
+      {
+       "type": "conveyor",
+       "title": "Droga jednego dokumentu",
+       "caption": "Najedź na stanowisko, żeby zobaczyć, co tam się dzieje. Tak samo wygląda każda z jedenastu automatyzacji.",
+       "stations": [
+        {
+         "icon": "tray",
+         "label": "Źródło",
+         "tip": "Skąd przychodzą pliki: formularz, skrzynka pocztowa, folder Google Drive, inna automatyzacja albo harmonogram. Źródło podłącza się raz, logika dalej jest ta sama."
+        },
+        {
+         "icon": "list-magnifying-glass",
+         "label": "Ustawienia",
+         "tip": "Jedyne miejsce, które zmienia firma: progi, waluty, budżety, adresy. Jeśli coś jest wpisane źle, automatyzacja staje i wypisuje wszystkie błędy naraz, a nie po jednym."
+        },
+        {
+         "icon": "file-text",
+         "label": "Odczyt",
+         "tip": "Rozpoznaje rodzaj pliku i czyta go: CSV, Excel, ODS, JSON, XML, a faktury także PDF z warstwą tekstową. Zepsuty plik dostaje własny status i nie zatrzymuje reszty."
+        },
+        {
+         "icon": "check-circle",
+         "label": "Kontrola",
+         "tip": "Sprawdza reguły i każdemu dokumentowi przybija status z powodem zapisanym zwykłym zdaniem.",
+         "stamps": true
+        },
+        {
+         "icon": "database",
+         "label": "Rejestr",
+         "tip": "Porównuje wynik z tym, co już było obsłużone. Faktura przyjęta wczoraj dziś dostanie „już przyjęta” i nie zostanie zgłoszona drugi raz."
+        },
+        {
+         "icon": "printer",
+         "label": "Raport",
+         "tip": "Plik CSV, który od razu otwiera się w Excelu. Raport może też pójść mailem do osoby odpowiedzialnej."
+        }
+       ],
+       "stamps": [
+        {
+         "label": "PRZYJETA",
+         "tone": "ok"
+        },
+        {
+         "label": "DO_POPRAWY",
+         "tone": "human"
+        },
+        {
+         "label": "JUZ_PRZYJETA",
+         "tone": "seen"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "reguly",
+     "title": "Co znaczy „według reguł”",
+     "toc": "Reguły",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Weźmy kontrolę faktur. Ustaliłem, że faktura musi mieć numer, NIP sprzedawcy, datę wystawienia i kwotę brutto. Polski NIP przechodzi [term:nip|sprawdzenie sumy kontrolnej], więc literówka wychodzi od razu. Netto plus VAT musi się równać brutto z dokładnością do grosza, a termin płatności nie może wypadać przed datą wystawienia."
+      },
+      {
+       "type": "paragraph",
+       "text": "Gdy coś się nie zgadza, moja automatyzacja niczego nie poprawia na oko. Zapis „1,234” może znaczyć tysiąc dwieście trzydzieści cztery złote albo złotówkę z groszami, więc faktura dostaje [term:status|status] „do poprawy” z powodem: kwota niejednoznaczna. Poprawia ją człowiek, który od razu wie, którą fakturę i które pole sprawdzić."
+      },
+      {
+       "type": "paragraph",
+       "text": "Bez [term:rejestr|rejestru] każde uruchomienie zgłaszałoby te same faktury od nowa, a klient po zapłacie dostawałby kolejne przypomnienie. Z rejestrem przypomnienie o płatności idzie raz na każdy etap: przed terminem, potem po jednym, czternastu i trzydziestu dniach. Awaria strony jest zgłaszana raz, a nie co pięć minut, i osobno przychodzi informacja, że minęła."
+      },
+      {
+       "type": "paragraph",
+       "text": "Wynikiem jest [term:csv|raport CSV], który można otworzyć, posortować i przekazać dalej bez dodatkowego programu. Automatyzację uruchamia się ręcznie albo według [term:harmonogram|harmonogramu], na przykład co rano."
+      }
+     ]
+    },
+    {
+     "id": "wyprobuj",
+     "title": "Uruchom je tutaj",
+     "toc": "Wypróbuj",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Poniżej działa mój kod z n8n, bez żadnej zmiany, rozrysowany tak jak na płótnie n8n. Do każdej automatyzacji dołożyłem przykład na fikcyjnych danych. Kliknij „Uruchom przykład” drugi raz: rejestr rozpozna dokumenty, które już widział, i w raporcie dostaną status „już przyjęte”. Możesz też wgrać własny plik. Zostaje w Twojej przeglądarce i nigdzie nie jest wysyłany."
+      },
+      {
+       "type": "runner",
+       "title": "Automatyzacje w Twojej przeglądarce",
+       "side_title": "Przebieg w n8n",
+       "caption": "Przebieg i liczby na połączeniach pochodzą z kodu automatyzacji uruchomionego na tej stronie. Raport z wynikami pobierzesz z płótna po uruchomieniu. Pliki nie opuszczają przeglądarki.",
+       "disclosure": "Pliki nie opuszczają przeglądarki. Poczta, Google Drive i wysyłka maili działają dopiero po podłączeniu kont w n8n, tutaj są pominięte.",
+       "text": {
+        "sample": "Uruchom przykład",
+        "again": "Uruchom ponownie",
+        "upload": "Twoje pliki",
+        "clear": "Wyczyść rejestr",
+        "drop": "Upuść pliki tutaj",
+        "empty": "Wybierz automatyzację i uruchom przykład.",
+        "loading": "Uruchamiam…",
+        "failed": "Nie udało się uruchomić",
+        "node1": "węzeł",
+        "node2": "węzły",
+        "node5": "węzłów",
+        "row1": "pozycja",
+        "row2": "pozycje",
+        "row5": "pozycji",
+        "run": "uruchomienie",
+        "known": "rozpoznane w rejestrze",
+        "fit": "Cały widok",
+        "item1": "pozycja",
+        "item2": "pozycje",
+        "item5": "pozycji",
+        "exec1": "krok",
+        "exec2": "kroki",
+        "exec5": "kroków",
+        "running": "Wykonuję"
+       },
+       "workflows": [
+        {
+         "id": "katalog-02",
+         "label": "Faktury",
+         "text": "pola i NIP",
+         "fields": [
+          "invoice_number",
+          "seller_name"
+         ]
+        },
+        {
+         "id": "katalog-10-13",
+         "label": "Terminy płatności",
+         "text": "przypomnienia i wezwania",
+         "fields": [
+          "invoice_no",
+          "customer"
+         ]
+        },
+        {
+         "id": "katalog-11",
+         "label": "Wpłaty",
+         "text": "częściowe i saldo",
+         "fields": [
+          "invoice_number",
+          "buyer_name"
+         ]
+        },
+        {
+         "id": "katalog-18-19",
+         "label": "Zamówienia",
+         "text": "ceny, sumy, adresy",
+         "fields": [
+          "order_id",
+          "customer"
+         ]
+        },
+        {
+         "id": "katalog-24-91",
+         "label": "Magazyn",
+         "text": "braki i domówienia",
+         "fields": [
+          "sku",
+          "name"
+         ]
+        },
+        {
+         "id": "katalog-43",
+         "label": "Dostępność stron",
+         "text": "awaria raz",
+         "fields": [
+          "service"
+         ],
+         "upload": false
+        },
+        {
+         "id": "katalog-61",
+         "label": "Łączenie plików",
+         "text": "wiele eksportów w jedną tabelę",
+         "fields": [
+          "file_name",
+          "row_key"
+         ]
+        },
+        {
+         "id": "katalog-68",
+         "label": "Ceny dostawców",
+         "text": "podwyżki i najtańszy",
+         "fields": [
+          "supplier",
+          "name"
+         ]
+        },
+        {
+         "id": "katalog-69-72",
+         "label": "Poczta",
+         "text": "kategorie według reguł",
+         "fields": [
+          "subject",
+          "from"
+         ],
+         "status_field": "decision",
+         "accept": ".eml"
+        },
+        {
+         "id": "katalog-81",
+         "label": "Wydatki",
+         "text": "kategorie i budżet",
+         "fields": [
+          "counterparty",
+          "description"
+         ]
+        },
+        {
+         "id": "katalog-93",
+         "label": "Raport sprzedaży",
+         "text": "miesięczny PDF",
+         "fields": [
+          "document",
+          "product"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "zestaw",
+     "title": "Co jest w zestawie",
+     "toc": "Zestaw",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Do każdej automatyzacji dopisałem na płótnie n8n opis po polsku: jak działa, jak ją podłączyć i słowniczek pojęć. Wbudowany przykład daje zawsze ten sam wynik, więc po każdej zmianie widać, czy coś się nie zepsuło."
+      },
+      {
+       "type": "summary",
+       "items": [
+        {
+         "label": "Faktury",
+         "text": "Komplet pól, suma kontrolna NIP, netto plus VAT równe brutto, waluty, duplikaty w jednej paczce plików."
+        },
+        {
+         "label": "Terminy płatności",
+         "text": "Przypomnienie do siedmiu dni przed terminem, wezwania po 1, 14 i 30 dniach, przedziały zaległości, faktury sporne bez monitu."
+        },
+        {
+         "label": "Wpłaty",
+         "text": "Przelewy z wyciągu (CSV, MT940, camt.053) dopasowane do faktur po numerze w tytule, wpłaty częściowe, nadpłaty i saldo."
+        },
+        {
+         "label": "Zamówienia",
+         "text": "Cena z cennika, suma pozycji z dostawą, kody pocztowe według kraju. Jeden błąd wstrzymuje całe zamówienie."
+        },
+        {
+         "label": "Magazyn",
+         "text": "Brak i niski stan po odjęciu rezerwacji, propozycja zamówienia zaokrąglona do opakowania i pogrupowana według dostawców."
+        },
+        {
+         "label": "Dostępność stron",
+         "text": "Kod odpowiedzi, czas, wymagany tekst na stronie. Awaria zgłaszana raz i osobna informacja o jej końcu."
+        },
+        {
+         "label": "Łączenie plików",
+         "text": "Eksporty z różnych oddziałów i programów, z różnymi nazwami kolumn, w jednej tabeli bez powtórzeń."
+        },
+        {
+         "label": "Ceny dostawców",
+         "text": "Podwyżki i obniżki powyżej progu, najtańszy dostawca dla tego samego towaru, waluty i jednostki."
+        },
+        {
+         "label": "Poczta",
+         "text": "Maile przydzielane do kategorii według reguł (nadawca, temat, załącznik). Sprzeczne reguły trafiają do człowieka."
+        },
+        {
+         "label": "Wydatki",
+         "text": "Kategorie z pliku albo według słów kluczowych, porównanie z budżetem miesiąca."
+        },
+        {
+         "label": "Raport sprzedaży",
+         "text": "Miesięczny PDF z sumami według walut, korektami, rankingiem i porównaniem do poprzedniego miesiąca."
+        }
+       ]
+      },
+      {
+       "type": "note",
+       "text": "Celowo żadna z nich niczego nie wysyła klientom ani dostawcom i niczego nie zamawia sama. Przygotowuje gotową listę, a działanie zostaje przy osobie, która za nie odpowiada."
+      }
+     ]
+    },
+    {
+     "id": "mapa",
+     "title": "Jak się ze sobą łączą",
+     "toc": "Mapa",
+     "blocks": [
+      {
+       "type": "paragraph",
+       "text": "Część automatyzacji zajmuje się tym samym dokumentem na kolejnych etapach: faktura jest najpierw sprawdzana, potem pilnuje się jej terminu, a na końcu rozlicza wpłaty. Każdą można jednak wdrożyć osobno, bez pozostałych."
+      },
+      {
+       "type": "graph",
+       "title": "Zależności między automatyzacjami",
+       "caption": "Poglądowa mapa: które automatyzacje dotyczą tych samych dokumentów. Każda działa samodzielnie.",
+       "nodes": [
+        {
+         "id": "faktury",
+         "title": "Faktury",
+         "text": "Sprawdza fakturę, zanim trafi do księgowości.",
+         "x": 110,
+         "y": 70
+        },
+        {
+         "id": "terminy",
+         "title": "Terminy płatności",
+         "text": "Pilnuje terminu zapłaty tej samej faktury.",
+         "x": 300,
+         "y": 50
+        },
+        {
+         "id": "wplaty",
+         "title": "Wpłaty",
+         "text": "Rozlicza wpłaty i pokazuje, ile z faktury zostało.",
+         "x": 480,
+         "y": 80
+        },
+        {
+         "id": "zamowienia",
+         "title": "Zamówienia",
+         "text": "Sprawdza zamówienia, zanim trafią do realizacji.",
+         "x": 120,
+         "y": 200
+        },
+        {
+         "id": "magazyn",
+         "title": "Magazyn",
+         "text": "Pilnuje stanów tych samych towarów.",
+         "x": 300,
+         "y": 220
+        },
+        {
+         "id": "ceny",
+         "title": "Ceny dostawców",
+         "text": "Pokazuje, u kogo te towary są najtańsze.",
+         "x": 480,
+         "y": 220
+        },
+        {
+         "id": "sprzedaz",
+         "title": "Raport sprzedaży",
+         "text": "Podsumowuje sprzedaż miesiąca w jednym PDF.",
+         "x": 590,
+         "y": 150
+        },
+        {
+         "id": "poczta",
+         "title": "Poczta",
+         "text": "Rozdziela maile z fakturami i zamówieniami do właściwych osób.",
+         "x": 40,
+         "y": 140
+        }
+       ],
+       "edges": [
+        {
+         "from": "poczta",
+         "to": "faktury",
+         "kind": "link"
+        },
+        {
+         "from": "poczta",
+         "to": "zamowienia",
+         "kind": "link"
+        },
+        {
+         "from": "faktury",
+         "to": "terminy",
+         "kind": "link"
+        },
+        {
+         "from": "terminy",
+         "to": "wplaty",
+         "kind": "link"
+        },
+        {
+         "from": "zamowienia",
+         "to": "magazyn",
+         "kind": "link"
+        },
+        {
+         "from": "magazyn",
+         "to": "ceny",
+         "kind": "link"
+        },
+        {
+         "from": "zamowienia",
+         "to": "sprzedaz",
+         "kind": "group"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "faq",
+     "title": "Pytania",
+     "toc": "Pytania",
+     "blocks": [
+      {
+       "type": "faq",
+       "items": [
+        {
+         "question": "Dlaczego bez AI?",
+         "answer": "Bo te zadania mają jedną poprawną odpowiedź. Reguła daje ją za każdym razem tak samo, nic nie kosztuje przy użyciu i da się ją sprawdzić. AI zostawiam tam, gdzie trzeba coś zrozumieć, a nie policzyć."
+        },
+        {
+         "question": "Co się dzieje, gdy danych brakuje?",
+         "answer": "Automatyzacja nie zgaduje. Dokument dostaje status „do poprawy” albo „do wyjaśnienia” z konkretnym powodem i czeka na człowieka."
+        },
+        {
+         "question": "Czy to samo nie zostanie zgłoszone dwa razy?",
+         "answer": "Nie. Rejestr pamięta, co już było obsłużone, więc drugie uruchomienie na tych samych plikach daje statusy „już przyjęta” albo „już zgłoszone”. Widać to w przykładach powyżej."
+        },
+        {
+         "question": "Czy trzeba mieć własny serwer?",
+         "answer": "Nie. Wystarczy n8n w chmurze. Własny serwer jest potrzebny tylko do sprawdzania usług w sieci firmowej, bo n8n w chmurze jej nie widzi."
+        },
+        {
+         "question": "Czy można dopasować reguły do firmy?",
+         "answer": "Tak. Progi, waluty, budżety, kategorie i adresy zmienia się w jednym węźle ustawień, bez ruszania logiki."
+        },
+        {
+         "question": "Co z danymi firmy?",
+         "answer": "W n8n dane zostają na koncie firmy. Na tej stronie wgrane pliki są przetwarzane w przeglądarce i nigdzie nie są wysyłane."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

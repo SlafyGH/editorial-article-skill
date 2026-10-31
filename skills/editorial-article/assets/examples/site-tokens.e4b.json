@@ -1,0 +1,16 @@
+{
+  "scope": ".ea",
+  "headerOffset": 64,
+  "light": {
+    "paper": "var(--background)", "ink": "var(--foreground)",
+    "body": "color-mix(in oklab,var(--foreground) 80%,var(--background))",
+    "faint": "var(--bg-soft)", "card": "var(--surface)",
+    "accent": "var(--copper-dark)", "signal": "var(--copper)",
+    "tint": "color-mix(in oklab,var(--copper) 11%,var(--background))"
+  },
+  "dark": {
+    "selector": "html[data-theme=dark]",
+    "tokens": { "accent": "var(--copper-light)", "tint": "color-mix(in oklab,var(--copper) 16%,var(--background))" }
+  },
+  "fonts": { "body": "var(--font-body)", "mono": "var(--font-mono)", "display": "var(--font-display)" }
+}
