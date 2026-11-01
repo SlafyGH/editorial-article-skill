@@ -13,6 +13,7 @@
 - `references/writing-publication.md`: evidence, author-led writing with AI edits, tone, translation and public-safety rules.
 - `references/content-schema.md`: optional renderer format and component limits.
 - `references/inspirations.md`: credited references and provenance.
+- `references/interactive-patterns.md` + `assets/patterns/service-bento/`: inspiration bank for interactive parts (live mini-UI scenes from eforb.pl, React source to port, rules: one scene in focus at a time).
 - `assets/shared/`: CSS, JS, fonts, icons, licenses and example cover; `figures.css`/`figures.js` hold the database drawing, try-it chat, dot matrix, conveyor drawing and the n8n-style workflow runner.
 - `assets/examples/rag-brief.json` (RAG, search and chat) and `assets/examples/automations-brief.json` (n8n automations, conveyor and runner; engine not bundled): approved case-study briefs, the reference for new articles.
 - `assets/example/`: Kacper's final EN/PL article and desktop/mobile previews.

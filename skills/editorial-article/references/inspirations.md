@@ -8,6 +8,10 @@ These are research references, not required dependencies or claims of affiliatio
 - **OpenAI, GPT-6 Astra article**: [publication](https://openai.com/index/gpt-6-astra/). Useful for topic-specific headings and separating explanations, demonstrations and evaluation details. The skill does not copy its branding or make those model scores into project metrics.
 - **Anthropic, Claude Fable page**: [publication](https://www.anthropic.com/claude/fable). Useful for grouping descriptions, use cases and evaluation context. It does not override the final approved appearance.
 
+## Interactive patterns
+
+- **Service bento / live mini-UI scenes** (dental SaaS reference, 01.11.2026): see [interactive-patterns.md](interactive-patterns.md) and the code in `assets/patterns/service-bento/`.
+
 ## Native implementation
 
 - [Agent Skills specification](https://agentskills.io/specification): standard `SKILL.md` packaging for compatible agents.

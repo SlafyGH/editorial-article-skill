@@ -27,7 +27,7 @@ Talk to the author plainly and to the point: complete, but no padding and no ove
 
 Use the supplied brief, project evidence and publication constraints. Ask only for facts or choices that materially change the result: missing author identity, a social URL, confidential/public scope, or an unavailable required image. Never guess a profile URL or turn a planned feature into a completed one.
 
-Read [design.md](references/design.md) and [writing-publication.md](references/writing-publication.md). For provenance and visual research, read [inspirations.md](references/inspirations.md); those links belong in development notes, not automatically in the public article.
+Read [design.md](references/design.md) and [writing-publication.md](references/writing-publication.md). For extra interactive parts (live mini-UI scenes and similar), see [interactive-patterns.md](references/interactive-patterns.md). For provenance and visual research, read [inspirations.md](references/inspirations.md); those links belong in development notes, not automatically in the public article.
 
 Default to English `index.html` and a fully translated Polish `pl.html`, sharing local assets. Keep both languages without a visible language switcher. Respect a requested single language or another explicit design change.
 
